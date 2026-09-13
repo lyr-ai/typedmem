@@ -95,7 +95,7 @@ When you `store.add(memory)` and a memory with the same `(workspace, type, subje
 
 | Policy | What it does |
 |---|---|
-| `REPLACE` | Existing record updated in place (same id). Newer-and-stronger wins; weaker incoming downgrades to `IGNORE`. A lower-authority incoming never replaces a higher-authority existing (strongest source on each side is compared; memories with no `sources` make no authority claim) |
+| `REPLACE` | Existing record updated in place (same id). Incoming must be no weaker on every key in the type's `resolve_by` (default `effective_from` + `confidence`) or it downgrades to `IGNORE`. A lower-authority incoming never replaces a higher-authority existing (strongest source on each side is compared; memories with no `sources` make no authority claim) |
 | `KEEP_BOTH` | Both stored independently; no link |
 | `SUPERSEDE` | Old gets `superseded_by = new.id` and stays in store; new is the active record |
 | `REINFORCE` | Single record; sources unioned by `(document_id, chunk_id, span)`; confidence boosted by authority-weighted blend |

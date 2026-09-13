@@ -42,6 +42,8 @@ from .kernel import (
 from .llm import AnthropicClient, FakeClient, LLMClient, OpenAIClient
 from .policy import (
     DEFAULT_POLICIES,
+    DEFAULT_RESOLVE_BY,
+    RESOLVE_KEYS,
     ConflictAction,
     ConflictPolicy,
     PolicyEngine,
@@ -65,6 +67,7 @@ __version__ = "0.8.0"
 
 __all__ = [
     "DEFAULT_POLICIES",
+    "DEFAULT_RESOLVE_BY",
     "EVENT_SOURCES",
     "SNAPSHOT_VERSION",
     "AgentMemory",
@@ -103,6 +106,7 @@ __all__ = [
     "PROMPTS",
     "PolicyConfidenceStrategy",
     "PolicyEngine",
+    "RESOLVE_KEYS",
     "PreferenceDriftDetector",
     "RelevanceWeights",
     "ReplayError",
