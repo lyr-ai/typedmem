@@ -15,6 +15,7 @@ import math
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
+from typing import Any, Callable
 
 from .schema import GoalStatus, Memory, MemoryType
 from .source import Source
@@ -35,11 +36,43 @@ class ConflictAction:
     notes: str = ""
 
 
+# Keys a ``TypePolicy.resolve_by`` may name. Each maps a Memory to a comparable
+# value; ``None`` means "this memory makes no claim on this key" and the guard
+# is skipped for that key (the same convention as the authority veto).
+RESOLVE_KEYS: dict[str, "Callable[[Memory], Any]"] = {
+    "effective_from": lambda m: m.effective_from,
+    "confidence": lambda m: m.confidence,
+}
+
+DEFAULT_RESOLVE_BY: tuple[str, ...] = ("effective_from", "confidence")
+
+
 @dataclass(frozen=True)
 class TypePolicy:
     half_life_days: float | None
     summarizable: bool
     conflict_policy: ConflictPolicy
+
+    # v0.9: which keys an incoming memory must be *no weaker on* to REPLACE the
+    # existing one. **Guard semantics, not priority order**: every listed key
+    # is checked and any key on which incoming < existing downgrades the
+    # action to IGNORE. Order is therefore irrelevant. The default reproduces
+    # the historical rule exactly; ``("effective_from",)`` means "newest wins,
+    # ignore confidence"; ``()`` means "always replace". Only consulted under
+    # REPLACE, and only after the authority veto (which stays a fixed,
+    # policy-independent safety guard — see ``PolicyEngine.resolve``).
+    resolve_by: tuple[str, ...] = DEFAULT_RESOLVE_BY
+
+    def __post_init__(self) -> None:
+        keys = tuple(self.resolve_by)
+        unknown = [k for k in keys if k not in RESOLVE_KEYS]
+        if unknown:
+            raise ValueError(
+                f"unknown resolve_by key(s) {unknown}; supported: {sorted(RESOLVE_KEYS)}"
+            )
+        if len(set(keys)) != len(keys):
+            raise ValueError(f"resolve_by has duplicate keys: {keys}")
+        object.__setattr__(self, "resolve_by", keys)  # normalize list → tuple
 
     # Back-compat: derived from conflict_policy for callers that still ask.
     # Removed in v0.5 alongside PolicyEngine.should_replace.
@@ -127,7 +160,8 @@ class PolicyEngine:
             # real conflict — fall through to side-by-side storage.
             return ConflictAction(ConflictPolicy.KEEP_BOTH, "type mismatch")
 
-        policy = self.policy_for(existing.type).conflict_policy
+        type_policy = self.policy_for(existing.type)
+        policy = type_policy.conflict_policy
 
         if policy is ConflictPolicy.REPLACE:
             # Provenance guard: a lower-authority incoming memory must not
@@ -146,18 +180,22 @@ class PolicyEngine:
                     f"incoming authority {a_incoming:g} below existing "
                     f"{a_existing:g} for replace",
                 )
-            # Weaker incoming should not displace stronger existing. "Older" is
-            # judged by ``effective_from`` (declared validity, else observation
-            # time): a freshly observed memory that describes an *earlier*
-            # state must not overwrite the current one.
+            # Weaker incoming should not displace stronger existing. Which keys
+            # define "weaker" is the type's ``resolve_by`` (guard semantics:
+            # incoming must be no weaker on *every* listed key). The default,
+            # ("effective_from", "confidence"), is the historical rule — e.g. a
+            # freshly observed memory that describes an *earlier* state must
+            # not overwrite the current one.
             # REINFORCE is exempt — the whole point is to accumulate
             # corroborating evidence regardless of its individual strength.
-            if (incoming.effective_from < existing.effective_from
-                    or incoming.confidence < existing.confidence):
-                return ConflictAction(
-                    ConflictPolicy.IGNORE,
-                    "incoming weaker than existing for replace",
-                )
+            for key in type_policy.resolve_by:
+                get = RESOLVE_KEYS[key]
+                v_in, v_ex = get(incoming), get(existing)
+                if v_in is not None and v_ex is not None and v_in < v_ex:
+                    return ConflictAction(
+                        ConflictPolicy.IGNORE,
+                        "incoming weaker than existing for replace",
+                    )
 
         return ConflictAction(policy)
 

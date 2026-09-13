@@ -35,8 +35,11 @@ TypeSpec(
     summarizable=False,
     required_fields=("source",),       # "source" → sources list must be non-empty
     allowed_tags=None,                  # None = open vocabulary; tuple = strict
+    resolve_by=None,                    # REPLACE guards; None = ("effective_from", "confidence")
 )
 ```
+
+`resolve_by` only matters under `conflict_policy=REPLACE`. It names the keys on which an incoming memory must be **no weaker** than the existing one to replace it — every listed key is checked, any weaker key downgrades the write to `IGNORE`, and order is irrelevant. Supported keys: `effective_from`, `confidence`. `["effective_from"]` means "newest wins, ignore confidence"; `[]` means "always replace". The source-authority veto (a lower-authority incoming never replaces a higher-authority existing) is a fixed guard that runs before `resolve_by` and cannot be configured away.
 
 Required-fields shorthand:
 
@@ -130,6 +133,7 @@ types:
     name: deadline
     conflict_policy: replace
     required_fields: [subject]
+    resolve_by: [effective_from]      # newest deadline wins even if less confident
 prompt_template: |
   ...
 ```

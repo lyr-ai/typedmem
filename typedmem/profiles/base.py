@@ -26,12 +26,24 @@ class TypeSpec:
     summarizable: bool = False
     required_fields: tuple[str, ...] = ()         # e.g. ("source",) → sources must be non-empty
     allowed_tags: tuple[str, ...] | None = None   # None = open; non-None = strict
+    # None = use TypePolicy's default guard set. See TypePolicy.resolve_by.
+    resolve_by: tuple[str, ...] | None = None
+
+    def __post_init__(self) -> None:
+        if self.resolve_by is not None:
+            # Validate eagerly (and normalize list → tuple) so a bad profile
+            # fails at load time, not at the first conflicting write.
+            object.__setattr__(self, "resolve_by", self.to_policy().resolve_by)
 
     def to_policy(self) -> TypePolicy:
+        kwargs: dict[str, Any] = {}
+        if self.resolve_by is not None:
+            kwargs["resolve_by"] = self.resolve_by
         return TypePolicy(
             half_life_days=self.half_life_days,
             summarizable=self.summarizable,
             conflict_policy=self.conflict_policy,
+            **kwargs,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -45,6 +57,8 @@ class TypeSpec:
         }
         if self.allowed_tags is not None:
             d["allowed_tags"] = list(self.allowed_tags)
+        if self.resolve_by is not None:
+            d["resolve_by"] = list(self.resolve_by)
         return d
 
     @classmethod
@@ -57,6 +71,7 @@ class TypeSpec:
             summarizable=bool(d.get("summarizable", False)),
             required_fields=tuple(d.get("required_fields", ())),
             allowed_tags=(tuple(d["allowed_tags"]) if d.get("allowed_tags") is not None else None),
+            resolve_by=(tuple(d["resolve_by"]) if d.get("resolve_by") is not None else None),
         )
 
 
