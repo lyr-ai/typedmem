@@ -49,7 +49,7 @@ Source(
     chunk_id="results",            # optional: which section/chunk
     span=(120, 240),               # optional: char offsets
     retrieved_at=...,              # defaults to now (UTC)
-    authority=0.95,                # used as weight in REINFORCE
+    authority=0.95,                # REPLACE guard + REINFORCE weight (see below)
     uri="https://arxiv.org/abs/..." # optional
 )
 ```
@@ -80,7 +80,7 @@ When you `store.add(memory)` and a memory with the same `(workspace, type, subje
 
 | Policy | What it does |
 |---|---|
-| `REPLACE` | Existing record updated in place (same id). Newer-and-stronger wins; weaker incoming downgrades to `IGNORE` |
+| `REPLACE` | Existing record updated in place (same id). Newer-and-stronger wins; weaker incoming downgrades to `IGNORE`. A lower-authority incoming never replaces a higher-authority existing (strongest source on each side is compared; memories with no `sources` make no authority claim) |
 | `KEEP_BOTH` | Both stored independently; no link |
 | `SUPERSEDE` | Old gets `superseded_by = new.id` and stays in store; new is the active record |
 | `REINFORCE` | Single record; sources unioned by `(document_id, chunk_id, span)`; confidence boosted by authority-weighted blend |

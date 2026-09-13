@@ -64,6 +64,17 @@ DEFAULT_POLICIES: dict[str, TypePolicy] = {
 }
 
 
+def memory_authority(m: Memory) -> float | None:
+    """The authority a memory can claim in conflict resolution: the strongest
+    of its sources, or ``None`` when it carries no provenance at all.
+
+    ``max`` rather than ``primary_source`` because a REINFORCE'd memory backed
+    by several sources should be defended by its best-attested one."""
+    if not m.sources:
+        return None
+    return max(s.authority for s in m.sources)
+
+
 def _normalize_keys(policies: dict) -> dict[str, TypePolicy]:
     """Accept either str or MemoryType keys; canonicalize to str."""
     return {(k.value if isinstance(k, Enum) else k): v for k, v in policies.items()}
@@ -119,6 +130,22 @@ class PolicyEngine:
         policy = self.policy_for(existing.type).conflict_policy
 
         if policy is ConflictPolicy.REPLACE:
+            # Provenance guard: a lower-authority incoming memory must not
+            # displace a higher-authority existing one merely because it is
+            # newer or more confident. This is the "explicit user statement
+            # vs. newer model inference" case — authority is compared first
+            # and on its own, not folded into confidence. Only applies when
+            # both sides carry provenance; a memory with no ``sources`` makes
+            # no authority claim and falls through to the rules below.
+            a_existing = memory_authority(existing)
+            a_incoming = memory_authority(incoming)
+            if (a_existing is not None and a_incoming is not None
+                    and a_incoming < a_existing):
+                return ConflictAction(
+                    ConflictPolicy.IGNORE,
+                    f"incoming authority {a_incoming:g} below existing "
+                    f"{a_existing:g} for replace",
+                )
             # Weaker incoming should not displace stronger existing.
             # REINFORCE is exempt — the whole point is to accumulate
             # corroborating evidence regardless of its individual strength.
