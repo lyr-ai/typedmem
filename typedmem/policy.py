@@ -146,10 +146,13 @@ class PolicyEngine:
                     f"incoming authority {a_incoming:g} below existing "
                     f"{a_existing:g} for replace",
                 )
-            # Weaker incoming should not displace stronger existing.
+            # Weaker incoming should not displace stronger existing. "Older" is
+            # judged by ``effective_from`` (declared validity, else observation
+            # time): a freshly observed memory that describes an *earlier*
+            # state must not overwrite the current one.
             # REINFORCE is exempt — the whole point is to accumulate
             # corroborating evidence regardless of its individual strength.
-            if (incoming.timestamp < existing.timestamp
+            if (incoming.effective_from < existing.effective_from
                     or incoming.confidence < existing.confidence):
                 return ConflictAction(
                     ConflictPolicy.IGNORE,

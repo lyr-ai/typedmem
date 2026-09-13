@@ -11,7 +11,7 @@ baseline for evaluating whether typed retrieval beats vector-only retrieval.
 
 from .filters import RetrievalFilters, apply_filters, build_filters
 from .ranker import RankedMemory, RankWeights, rerank
-from .resolver import latest_per_slot, remove_superseded, resolve_temporal
+from .resolver import filter_valid, latest_per_slot, remove_superseded, resolve_temporal
 from .retriever import TypedRetriever
 from .router import DEFAULT_ROUTES, RetrievalIntent, route_query
 from .vector_search import Candidate, MemoryVectorizer, search_candidates
@@ -27,6 +27,7 @@ __all__ = [
     "TypedRetriever",
     "apply_filters",
     "build_filters",
+    "filter_valid",
     "latest_per_slot",
     "remove_superseded",
     "rerank",

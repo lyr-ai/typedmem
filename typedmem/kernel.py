@@ -360,6 +360,8 @@ class TransitionEngine:
             existing.content = incoming.content
             existing.confidence = incoming.confidence
             existing.timestamp = incoming.timestamp
+            existing.valid_from = incoming.valid_from
+            existing.valid_to = incoming.valid_to
             existing.tags = list({*existing.tags, *incoming.tags})
             if incoming.sources:
                 existing.sources = list(incoming.sources)

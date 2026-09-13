@@ -77,6 +77,14 @@ def _source_from_args(args: argparse.Namespace) -> Source | None:
     return Source(**kwargs)
 
 
+def _parse_when(value: str | None) -> datetime | None:
+    """ISO-8601 → aware datetime; a naive value is taken as UTC."""
+    if not value:
+        return None
+    dt = datetime.fromisoformat(value)
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
 def cmd_add(args: argparse.Namespace, store: MemoryStore) -> int:
     source = _source_from_args(args)
     if args.type:
@@ -88,6 +96,8 @@ def cmd_add(args: argparse.Namespace, store: MemoryStore) -> int:
             confidence=args.confidence,
             workspace=args.workspace,
             sources=[source] if source else [],
+            valid_from=_parse_when(getattr(args, "valid_from", None)),
+            valid_to=_parse_when(getattr(args, "valid_to", None)),
         )
         store.add(m, event_source="user", event_source_name="cli:add")
         print(f"added 1 memory ({m.type}): {m.id}")
@@ -406,6 +416,8 @@ def build_parser() -> argparse.ArgumentParser:
     sa.add_argument("--document-id", help="opaque id of the source document")
     sa.add_argument("--uri", help="URL or path to the source document")
     sa.add_argument("--authority", type=float, help="weight in conflict resolution (default 1.0)")
+    sa.add_argument("--valid-from", help="ISO-8601; when the content starts to apply (may be in the future); requires --type")
+    sa.add_argument("--valid-to", help="ISO-8601; when the content stops applying (exclusive); requires --type")
     sa.set_defaults(func=cmd_add)
 
     ss = sub.add_parser("search", help="semantic search across stored memories")

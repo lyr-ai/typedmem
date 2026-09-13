@@ -64,6 +64,16 @@ class Memory:
     # 1 transparently via ``from_dict``/column default.
     version: int = 1
 
+    # Temporal validity: the interval ``[valid_from, valid_to)`` during which the
+    # memory's *content* holds. Distinct from ``timestamp``, which is when the
+    # memory was observed/written (and remains the anchor for confidence decay).
+    # ``None`` means *unspecified*, not "same as timestamp" — the operational
+    # fallback lives in ``effective_from``, so persisted data keeps the
+    # distinction between "declared" and "defaulted". ``valid_from`` may be in
+    # the future relative to ``timestamp`` ("from Oct 1 I live in Seattle").
+    valid_from: datetime | None = None
+    valid_to: datetime | None = None
+
     def __post_init__(self) -> None:
         # Accept MemoryType enum or any string; canonicalize to string.
         if isinstance(self.type, MemoryType):
@@ -76,6 +86,13 @@ class Memory:
             raise ValueError(f"confidence must be in [0,1], got {self.confidence}")
         if self.type == MemoryType.GOAL and self.status is None:
             self.status = GoalStatus.ACTIVE.value
+        # An empty or inverted validity window has no meaning and would make
+        # temporal resolution silently drop the memory; reject it up front.
+        if self.valid_to is not None and self.valid_to <= self.effective_from:
+            raise ValueError(
+                f"valid_to ({self.valid_to.isoformat()}) must be after effective_from "
+                f"({self.effective_from.isoformat()})"
+            )
 
         # Lift legacy ``source`` (str) into ``sources`` list and clear it so
         # there is one canonical place for provenance.
@@ -93,11 +110,26 @@ class Memory:
     def primary_source(self) -> Source | None:
         return self.sources[0] if self.sources else None
 
+    # ── temporal validity ────────────────────────────────────────────────
+    @property
+    def effective_from(self) -> datetime:
+        """When the content starts to apply: the declared ``valid_from``, or the
+        observation ``timestamp`` when none was declared."""
+        return self.valid_from or self.timestamp
+
+    def is_valid_at(self, t: datetime) -> bool:
+        """True if ``t`` falls in the half-open window ``[effective_from, valid_to)``.
+        Half-open so that ``A.valid_to == B.valid_from`` never yields two valid
+        states at the switch-over instant."""
+        return self.effective_from <= t and (self.valid_to is None or t < self.valid_to)
+
     def to_dict(self) -> dict[str, Any]:
         d = asdict(self)
         d["type"] = self.type                       # already a string
         d["timestamp"] = self.timestamp.isoformat()
         d["updated_at"] = self.updated_at.isoformat()
+        d["valid_from"] = self.valid_from.isoformat() if self.valid_from else None
+        d["valid_to"] = self.valid_to.isoformat() if self.valid_to else None
         d["sources"] = [s.to_dict() for s in self.sources]
         d.pop("source", None)  # deprecated field is not part of the canonical shape
         return d
@@ -110,6 +142,9 @@ class Memory:
             data["timestamp"] = datetime.fromisoformat(data["timestamp"])
         if isinstance(data.get("updated_at"), str):
             data["updated_at"] = datetime.fromisoformat(data["updated_at"])
+        for key in ("valid_from", "valid_to"):
+            if isinstance(data.get(key), str):
+                data[key] = datetime.fromisoformat(data[key])
         data.setdefault("workspace", "default")
 
         # Provenance lifting: prefer ``sources`` if present, else lift legacy

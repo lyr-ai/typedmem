@@ -28,7 +28,7 @@ typedmem --profile engineering_design add "Use SQLite for storage" \
   --document-id design_v1.md --authority 0.95
 ```
 
-Options: `--type`, `--subject`, `--tags`, `--confidence`, `--document-id`, `--uri`, `--authority`.
+Options: `--type`, `--subject`, `--tags`, `--confidence`, `--document-id`, `--uri`, `--authority`, `--valid-from`, `--valid-to` (ISO-8601; naive values are taken as UTC; `--valid-to` is exclusive; both require `--type`).
 
 ### `search`
 
