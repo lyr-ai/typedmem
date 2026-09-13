@@ -33,7 +33,22 @@ Fields:
 | `sources` | `list[Source]` | Provenance — see below |
 | `status` | `str \| None` | E.g. `"active"`/`"resolved"` for goals |
 | `superseded_by` | `str \| None` | Set by `SUPERSEDE` policy or evolvers |
+| `valid_from` | `datetime \| None` | When the content starts to apply; may be later than `timestamp` ("from Oct 1 I live in Seattle"). `None` = unspecified |
+| `valid_to` | `datetime \| None` | When it stops applying (exclusive). `None` = open-ended |
 | `metadata` | `dict[str, Any]` | Library-managed fields (`replace_log`, `conflicts_with`, `evolution_history`, …) plus user-defined keys |
+
+### Observation time vs. validity
+
+`timestamp` is when the memory was **observed** (written). `[valid_from, valid_to)` is when its **content holds**. They answer different questions and are kept apart:
+
+| | field | used by |
+|---|---|---|
+| epistemic freshness — "how long since we last observed this?" | `timestamp` | confidence decay (`half_life_days`) |
+| temporal validity — "during which period is this true?" | `valid_from` / `valid_to` | temporal resolution, `as_of` queries, REPLACE ordering |
+
+`Memory.effective_from` is the operational fallback: `valid_from` if declared, else `timestamp`. `Memory.is_valid_at(t)` tests the half-open window `[effective_from, valid_to)` — half-open so that `A.valid_to == B.valid_from` yields exactly one valid state at the switch-over instant. A `valid_to` at or before `effective_from` is rejected at construction.
+
+`valid_from` may be in the future relative to `timestamp`. `resolve_temporal()` filters to memories valid at `as_of` (default: now) **before** collapsing single-valued slots to their newest member, so a declared future state never shadows the current one; it becomes the answer once `as_of` passes its `valid_from`. Nothing closes a window automatically — `REPLACE`/`SUPERSEDE` do not set the old memory's `valid_to`. That is a per-type decision reserved for a later resolution-rule contract.
 
 `Memory.type` is plain `str` so profiles can register custom types. The `MemoryType` enum (`MemoryType.FACT == "fact"`, etc.) is kept as a back-compat alias.
 

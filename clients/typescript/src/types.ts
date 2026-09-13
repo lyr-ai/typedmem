@@ -26,6 +26,8 @@ export interface Memory {
   superseded_by?: string | null;
   metadata: Record<string, unknown>;
   status?: string | null;
+  valid_from?: string | null;    // ISO 8601; when the content starts to apply
+  valid_to?: string | null;      // ISO 8601, exclusive; when it stops applying
 }
 
 /** Inbound memory shape for ``add()`` — server fills in id / timestamps. */
@@ -41,6 +43,8 @@ export interface MemoryInput {
   status?: string | null;
   id?: string;                   // honoured if you're migrating data
   timestamp?: string;            // honoured if you're migrating data
+  valid_from?: string | null;    // ISO 8601; may be in the future
+  valid_to?: string | null;      // ISO 8601, exclusive
 }
 
 export interface MemoryEvent {

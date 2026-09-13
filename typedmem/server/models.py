@@ -41,6 +41,8 @@ class MemoryIn(BaseModel):
     status: str | None = None
     id: str | None = None
     timestamp: datetime | None = None
+    valid_from: datetime | None = None
+    valid_to: datetime | None = None
 
 
 class MemoryOut(BaseModel):
@@ -61,6 +63,8 @@ class MemoryOut(BaseModel):
     superseded_by: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
     status: str | None = None
+    valid_from: datetime | None = None
+    valid_to: datetime | None = None
 
 
 EventSourceLiteral = Literal["store", "evolver", "agent", "user", "system"]

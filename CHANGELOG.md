@@ -4,6 +4,19 @@ All notable changes to TypedMemory.
 
 ## [Unreleased]
 
+### Added
+- **Temporal validity: `Memory.valid_from` / `Memory.valid_to`.** `timestamp` is now unambiguously *observation time*; the new half-open window `[valid_from, valid_to)` says when the *content holds*. Both default to `None` (= unspecified, persisted as such); `Memory.effective_from` is the operational fallback (`valid_from or timestamp`) and `Memory.is_valid_at(t)` tests the window. `valid_from` may be later than `timestamp` (a declared future state). An empty or inverted window raises `ValueError` at construction.
+- `typedmem.retrieval.filter_valid()` and a `include_expired` flag on `resolve_temporal()`.
+- SQLite stores automatically migrate existing databases to add the two nullable columns; JSONL/in-memory records without them load as `None`.
+- Server `MemoryIn`/`MemoryOut`, CLI `add --valid-from/--valid-to`, and the TypeScript client types carry the new fields.
+
+### Changed
+- `resolve_temporal()` now keeps only memories valid at `as_of` (default: **now**) — expired *and* future-valid memories are excluded — and does so **before** `latest_per_slot`, so a future `valid_from` cannot shadow the current state. `latest_per_slot` orders by `effective_from` and accepts `as_of`.
+- `RetrievalFilters.as_of` matches against the validity window (`is_valid_at`) instead of `timestamp <= as_of`.
+- `PolicyEngine.resolve()` judges "older incoming" under `REPLACE` by `effective_from` rather than `timestamp`: a freshly observed memory describing an *earlier* state no longer overwrites the current one.
+- `REPLACE` carries the incoming memory's `valid_from`/`valid_to` onto the record, as it already did for `timestamp`.
+- Confidence decay is unchanged and still anchored on `timestamp`.
+
 ### Fixed
 - **`Source.authority` now actually participates in conflict resolution.** The CLI (`--authority`, "weight in conflict resolution") and the `source.py` docstring have promised this since v0.4a, but `PolicyEngine.resolve()` only ever consulted timestamp and confidence. Under `REPLACE`, an incoming memory whose strongest source has *lower* authority than the existing memory's strongest source is now downgraded to `IGNORE` — a newer, more confident model inference (`authority=0.3`) can no longer overwrite an older explicit user statement (`authority=1.0`). Equal or higher authority falls through to the unchanged timestamp/confidence rules. Memories with no `sources` make no authority claim and are resolved exactly as before. Other policies (`SUPERSEDE`, `KEEP_BOTH`, `FLAG`, `REINFORCE`) are untouched; the existing authority weighting in the `REINFORCE` confidence blend is unchanged.
 - New helper `typedmem.policy.memory_authority(m)` — the max authority across a memory's sources, or `None`.

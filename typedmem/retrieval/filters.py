@@ -2,7 +2,7 @@
 
 Narrow the candidate set with cheap, exact predicates *before* semantic search:
 memory type, entity (mapped to ``Memory.subject``), status, and point-in-time
-(``as_of`` against ``Memory.timestamp``). Explicit call-site args override the
+(``as_of`` against the memory's validity window, ``Memory.is_valid_at``). Explicit call-site args override the
 router's predicted intent.
 """
 
@@ -26,7 +26,7 @@ def _norm_types(types: list[str] | None) -> list[str] | None:
 class RetrievalFilters:
     """Exact-match predicates applied before vector search. A ``None`` field is
     unconstrained. ``entity_ids`` matches ``Memory.subject``; ``as_of`` keeps
-    memories with ``timestamp <= as_of``."""
+    memories whose validity window contains ``as_of`` (``Memory.is_valid_at``)."""
 
     memory_types: list[str] | None = None
     entity_ids: list[str] | None = None
@@ -43,7 +43,7 @@ class RetrievalFilters:
             return False
         if self.status is not None and m.status != self.status:
             return False
-        if self.as_of is not None and m.timestamp > self.as_of:
+        if self.as_of is not None and not m.is_valid_at(self.as_of):
             return False
         return True
 

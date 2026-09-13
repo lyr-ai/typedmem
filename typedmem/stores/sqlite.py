@@ -41,6 +41,8 @@ CREATE TABLE IF NOT EXISTS memories (
     updated_at    TEXT NOT NULL,
     status        TEXT,
     version       INTEGER NOT NULL DEFAULT 1,
+    valid_from    TEXT,
+    valid_to      TEXT,
     embedder_id   TEXT,
     embedding     TEXT
 )
@@ -89,6 +91,9 @@ _v04a_COLUMNS: list[tuple[str, str]] = [
     ("superseded_by", "ALTER TABLE memories ADD COLUMN superseded_by TEXT"),
     # v0.8 (RFC-0001): optimistic-concurrency version. Old rows migrate to 1.
     ("version",       "ALTER TABLE memories ADD COLUMN version INTEGER NOT NULL DEFAULT 1"),
+    # v0.9: temporal validity window. NULL = unspecified (see Memory.valid_from).
+    ("valid_from",    "ALTER TABLE memories ADD COLUMN valid_from TEXT"),
+    ("valid_to",      "ALTER TABLE memories ADD COLUMN valid_to TEXT"),
 ]
 
 
@@ -137,6 +142,8 @@ def _row_to_memory(row: sqlite3.Row) -> Memory:
     workspace = row["workspace"] if "workspace" in cols else "default"
     superseded_by = row["superseded_by"] if "superseded_by" in cols else None
     version = row["version"] if "version" in cols and row["version"] is not None else 1
+    valid_from = row["valid_from"] if "valid_from" in cols else None
+    valid_to = row["valid_to"] if "valid_to" in cols else None
 
     sources = [Source.from_dict(s) for s in json.loads(sources_json or "[]")]
 
@@ -155,6 +162,8 @@ def _row_to_memory(row: sqlite3.Row) -> Memory:
         updated_at=datetime.fromisoformat(row["updated_at"]),
         status=row["status"] if row["status"] else None,
         version=version,
+        valid_from=datetime.fromisoformat(valid_from) if valid_from else None,
+        valid_to=datetime.fromisoformat(valid_to) if valid_to else None,
     )
     if "embedding" in cols and row["embedding"]:
         m.metadata["_embedding"] = json.loads(row["embedding"])
@@ -214,8 +223,8 @@ class SQLiteMemoryStore(MemoryStore):
             INSERT INTO memories
               (id, type, content, confidence, timestamp, subject, tags, sources,
                workspace, superseded_by, metadata, updated_at, status, version,
-               embedder_id, embedding)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+               valid_from, valid_to, embedder_id, embedding)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             ON CONFLICT(id) DO UPDATE SET
               type=excluded.type, content=excluded.content,
               confidence=excluded.confidence, timestamp=excluded.timestamp,
@@ -224,6 +233,7 @@ class SQLiteMemoryStore(MemoryStore):
               superseded_by=excluded.superseded_by,
               metadata=excluded.metadata, updated_at=excluded.updated_at,
               status=excluded.status, version=excluded.version,
+              valid_from=excluded.valid_from, valid_to=excluded.valid_to,
               embedder_id=COALESCE(excluded.embedder_id, memories.embedder_id),
               embedding=COALESCE(excluded.embedding, memories.embedding)
             """,
@@ -235,6 +245,8 @@ class SQLiteMemoryStore(MemoryStore):
                 json.dumps(m.metadata), m.updated_at.isoformat(),
                 m.status,                              # already a string
                 m.version,
+                m.valid_from.isoformat() if m.valid_from else None,
+                m.valid_to.isoformat() if m.valid_to else None,
                 emb_id, json.dumps(emb) if emb is not None else None,
             ),
         )
