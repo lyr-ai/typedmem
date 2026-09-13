@@ -286,7 +286,7 @@ class SQLiteMemoryStore(MemoryStore):
         self._conn.commit()
 
     def _iter_events(self) -> Iterator[MemoryEvent]:
-        for row in self._conn.execute("SELECT * FROM memory_events ORDER BY timestamp"):
+        for row in self._conn.execute("SELECT * FROM memory_events ORDER BY timestamp, rowid"):
             yield _row_to_event(row)
 
     # ── Optimized overrides ──────────────────────────────────────────────
@@ -328,7 +328,7 @@ class SQLiteMemoryStore(MemoryStore):
     def history(self, memory_id: str) -> list[MemoryEvent]:
         self._migrate_legacy_history(memory_id)
         rows = self._conn.execute(
-            "SELECT * FROM memory_events WHERE memory_id=? ORDER BY timestamp",
+            "SELECT * FROM memory_events WHERE memory_id=? ORDER BY timestamp, rowid",
             (memory_id,),
         ).fetchall()
         return [_row_to_event(r) for r in rows]
@@ -365,14 +365,14 @@ class SQLiteMemoryStore(MemoryStore):
         sql = "SELECT * FROM memory_events"
         if where:
             sql += " WHERE " + " AND ".join(where)
-        sql += " ORDER BY timestamp"
+        sql += " ORDER BY timestamp, rowid"
         rows = self._conn.execute(sql, params).fetchall()
         return [_row_to_event(r) for r in rows]
 
     def changed_since(self, timestamp: datetime) -> list[MemoryEvent]:
         self._migrate_legacy_history_all()
         rows = self._conn.execute(
-            "SELECT * FROM memory_events WHERE timestamp > ? ORDER BY timestamp",
+            "SELECT * FROM memory_events WHERE timestamp > ? ORDER BY timestamp, rowid",
             (timestamp.isoformat(),),
         ).fetchall()
         return [_row_to_event(r) for r in rows]

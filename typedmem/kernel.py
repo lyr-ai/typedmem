@@ -47,6 +47,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
+from .events import snapshot
 from .policy import ConflictAction, ConflictPolicy, PolicyEngine
 from .schema import GoalStatus, Memory, MemoryType
 from .source import Source
@@ -237,6 +238,8 @@ class TransitionEngine:
         reason: str,
         actor: str,
         actor_name: str | None,
+        before: dict | None,
+        after: dict | None,
     ) -> None:
         # Lazy import avoids an import cycle (base imports this module at load).
         from .stores.base import _record_lifecycle_event
@@ -245,6 +248,7 @@ class TransitionEngine:
             self.store, m,
             action=action, input_ids=input_ids, output_ids=output_ids,
             reason=reason, source=actor, source_name=actor_name,
+            before=before, after=after,
         )
 
     # -- add ---------------------------------------------------------------
@@ -259,6 +263,7 @@ class TransitionEngine:
             self._emit(
                 m, action="added", input_ids=[m.id], output_ids=[m.id],
                 reason="", actor=t.actor, actor_name=t.actor_name,
+                before=None, after=snapshot(m),
             )
             return m
 
@@ -282,6 +287,7 @@ class TransitionEngine:
             m, action="create",
             input_ids=list(t.evidence) or [m.id], output_ids=[m.id],
             reason=t.reason, actor=t.actor, actor_name=t.actor_name,
+            before=None, after=snapshot(m),
         )
         return m
 
@@ -295,6 +301,7 @@ class TransitionEngine:
         self._emit(
             existing, action="deleted", input_ids=[t.memory_id], output_ids=[],
             reason=t.reason, actor=t.actor, actor_name=t.actor_name,
+            before=snapshot(existing), after=None,
         )
         return store._delete(t.memory_id)
 
@@ -313,6 +320,7 @@ class TransitionEngine:
         # leaves the record untouched (no partial mutation, no version bump).
         if "status" in t.changes:
             store.lifecycle.validate_transition(m, t.changes["status"])
+        before = snapshot(m)  # taken before any mutation; _get may hand back a live object
         for key, value in t.changes.items():
             setattr(m, key, value)
         m.version += 1
@@ -324,6 +332,7 @@ class TransitionEngine:
         self._emit(
             m, action=t.action, input_ids=input_ids, output_ids=[m.id],
             reason=t.reason, actor=t.actor, actor_name=t.actor_name,
+            before=before, after=snapshot(m),
         )
         store._put(m)
         return m
@@ -345,6 +354,10 @@ class TransitionEngine:
         if p is ConflictPolicy.IGNORE:
             return existing
 
+        # Every branch below may mutate ``existing`` in place; capture its
+        # pre-change state once, here, so each event's ``before`` is exact.
+        before_existing = snapshot(existing)
+
         if p is ConflictPolicy.KEEP_BOTH:
             store._put(incoming)
             self._emit(
@@ -352,6 +365,7 @@ class TransitionEngine:
                 input_ids=[incoming.id], output_ids=[incoming.id],
                 reason="kept-both alongside existing",
                 actor=actor, actor_name=actor_name,
+                before=None, after=snapshot(incoming),
             )
             return incoming
 
@@ -379,6 +393,7 @@ class TransitionEngine:
                 input_ids=[existing.id], output_ids=[existing.id],
                 reason=f"content updated (was: {old_content[:60]!r})",
                 actor=actor, actor_name=actor_name,
+                before=before_existing, after=snapshot(existing),
             )
             store._put(existing)
             return existing
@@ -392,12 +407,14 @@ class TransitionEngine:
                 input_ids=[existing.id], output_ids=[incoming.id],
                 reason=f"superseded by new {incoming.type}",
                 actor=actor, actor_name=actor_name,
+                before=before_existing, after=snapshot(existing),
             )
             self._emit(
                 incoming, action="supersedes",
                 input_ids=[existing.id, incoming.id], output_ids=[incoming.id],
                 reason=f"supersedes earlier {existing.type}: {existing.content[:60]!r}",
                 actor=actor, actor_name=actor_name,
+                before=None, after=snapshot(incoming),
             )
             store._put(existing)
             store._put(incoming)
@@ -415,14 +432,20 @@ class TransitionEngine:
                 existing.content = incoming.content
             existing.touch()
             existing.version += 1
+            # Always emitted (v0.9): the record mutates — confidence, tags,
+            # version — even when no new unique source arrived, and an
+            # unlogged mutation would leave the log un-replayable.
             if new_unique:
                 src_ids = ", ".join(s.document_id for s in new_unique)
-                self._emit(
-                    existing, action="reinforced",
-                    input_ids=[existing.id], output_ids=[existing.id],
-                    reason=f"+{len(new_unique)} source(s): {src_ids}",
-                    actor=actor, actor_name=actor_name,
-                )
+                reason = f"+{len(new_unique)} source(s): {src_ids}"
+            else:
+                reason = "+0 source(s): corroboration from already-known sources"
+            self._emit(
+                existing, action="reinforced",
+                input_ids=[existing.id], output_ids=[existing.id],
+                reason=reason, actor=actor, actor_name=actor_name,
+                before=before_existing, after=snapshot(existing),
+            )
             store._put(existing)
             return existing
 
@@ -436,12 +459,14 @@ class TransitionEngine:
                 input_ids=[existing.id, incoming.id], output_ids=[existing.id],
                 reason=f"cross-linked to new {incoming.type}: {incoming.content[:60]!r}",
                 actor=actor, actor_name=actor_name,
+                before=before_existing, after=snapshot(existing),
             )
             self._emit(
                 incoming, action="flagged",
                 input_ids=[existing.id, incoming.id], output_ids=[incoming.id],
                 reason=f"cross-linked to existing {existing.type}: {existing.content[:60]!r}",
                 actor=actor, actor_name=actor_name,
+                before=None, after=snapshot(incoming),
             )
             store._put(existing)
             store._put(incoming)
