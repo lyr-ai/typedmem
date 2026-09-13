@@ -2,6 +2,12 @@
 
 All notable changes to TypedMemory.
 
+## [Unreleased]
+
+### Fixed
+- **`Source.authority` now actually participates in conflict resolution.** The CLI (`--authority`, "weight in conflict resolution") and the `source.py` docstring have promised this since v0.4a, but `PolicyEngine.resolve()` only ever consulted timestamp and confidence. Under `REPLACE`, an incoming memory whose strongest source has *lower* authority than the existing memory's strongest source is now downgraded to `IGNORE` — a newer, more confident model inference (`authority=0.3`) can no longer overwrite an older explicit user statement (`authority=1.0`). Equal or higher authority falls through to the unchanged timestamp/confidence rules. Memories with no `sources` make no authority claim and are resolved exactly as before. Other policies (`SUPERSEDE`, `KEEP_BOTH`, `FLAG`, `REINFORCE`) are untouched; the existing authority weighting in the `REINFORCE` confidence blend is unchanged.
+- New helper `typedmem.policy.memory_authority(m)` — the max authority across a memory's sources, or `None`.
+
 ## [0.8.0] — 2026-07-18
 
 **Governed State Transitions.** TypedMem v0.8 introduces the first complete kernel for deterministic, policy-governed memory evolution (RFC-0001).
