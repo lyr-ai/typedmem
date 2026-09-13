@@ -166,6 +166,7 @@ why. Controlled ablations:
 | variant | what it is | expected to improve |
 |---|---|---|
 | **V0** retrieval baseline | memories stored independently; no authority guard; timestamp as the only temporal signal; no validity window; one global replacement strategy | — (establishes the failure rate of memory-as-records) |
+| **V0-scd** bitemporal baseline | a slowly-changing-dimension / bitemporal table: valid-time and transaction-time columns, supersession by newest valid-time, no notion of source authority or confidence | the strongest *non-agent* baseline; what a data engineer would build — see §24 |
 | **V1** state resolver | TypedMem's state/conflict machinery with the mechanisms under evaluation disabled | separates "explicit state resolution exists" from each semantic addition |
 | **V2** + provenance authority | V1 plus authority-aware replacement protection | authority-conflict scenarios; little or none elsewhere |
 | **V3** + temporal validity | V2 plus `valid_from` / `valid_to`, `as_of` semantics, future-validity filtering | retroactive updates, expired state, future state, historical queries |
@@ -309,6 +310,7 @@ accuracy.
 | **temporal accuracy** | correct state at the requested `as_of` / temporal queries | A |
 | **corruption rate** | correct states overwritten by lower-quality evidence / opportunities for such corruption | A |
 | **end-to-end answer accuracy** | final natural-language answer semantically correct; kept separate from state accuracy | B |
+| **end-task utility** (Phase 2B+) | task success, steps to completion, clarification questions asked, latency — on a task the agent performs *using* the memory, not a question about the memory | B, §24 |
 
 Corruption rate is often more interpretable than accuracy for authority
 scenarios: *"provenance-aware resolution reduced state corruption from X% to
@@ -323,6 +325,7 @@ Written down before running anything:
 | variant | authority | temporal | typed | mixed |
 |---|---:|---:|---:|---:|
 | V0 retrieval baseline | low | low | low | low |
+| V0-scd bitemporal baseline | low | **high** | low | medium |
 | V1 resolver | medium | low | low/medium | low |
 | V2 + authority | **high** | low | low/medium | medium |
 | V3 + validity | high | **high** | medium | high |
@@ -490,3 +493,31 @@ This plan is frozen alongside the PR 1–4 milestone. It changes only if:
 None of the deferred items in §3 are added on the strength of intuition
 during this phase. The point of the phase is to replace intuition with a
 number.
+
+---
+
+## 24. External feedback → evaluation implications
+
+Four pieces of feedback on the state-semantics write-up, and where each one
+lands. The priority is: absorb into the benchmark first, into the paper
+framing second, into the roadmap third. **None of them opens a PR now.**
+
+| feedback | the point | absorbed as |
+|---|---|---|
+| **bitemporality / supersession** (Multi-DAC) | long-horizon memory has to distinguish observation time from valid time, and "newer" is ambiguous until you say on which axis | **bitemporal correctness** — Category B already tests it; make the three query classes explicit and balanced: *current state*, *historical as-of*, *future-valid*. Add supersession chains (A superseded by B superseded by C, with a query at each interval) to B and D. |
+| **replay + policy versioning** (shashank_magic) | replay should restore historical outcomes, not re-run the current policy; policy versions are part of decision provenance | **replay determinism** — a Mode A check, not an accuracy ablation (§3): same event log, two policy versions, identical replayed state. Policy migration and decision provenance stay on the roadmap (§3, §23), not in this phase. |
+| **SCD / data warehousing** (presentofai) | validity windows and supersession are slowly-changing dimensions; a bitemporal table has done this for decades | **SCD baseline** — the most important item here, because it is the reviewer attack. Validity and supersession are *not* the novelty. V0-scd (§6) is the strong baseline; the claim under test is narrower: agent memory adds *noisy, inferred, provenance-dependent* updates, and a bitemporal table has no notion of which writer was entitled to write. Category A and D are where that shows; on Category B alone, V0-scd should match V3, and the matrix (§15) says so. |
+| **end-task utility / domain specificity** (bestjaegerpilot) | memory correctness is intrinsic; what matters is whether the agent does the task better — and that is domain-specific | **end-task utility** — a third evaluation layer above Mode A and Mode B (§14): task success, bug rate, steps, latency, clarification count on a task the agent performs *with* the memory. Coding is the natural first domain and doubles as the external-domain validation of §20. Not in the pilot; in Phase 2B. |
+
+Two consequences for the paper framing, recorded here so they are not
+rediscovered after the results are in:
+
+- **Related work leads with bitemporal databases and SCD**, not with agent
+  memory libraries. The novelty claim is provenance-aware resolution over
+  inferred updates, tested against a bitemporal baseline that already gets
+  the temporal part right.
+- **A result that beats V0 but not V0-scd on temporal scenarios is the
+  expected result, not a failure.** It means the temporal machinery is
+  correct and unoriginal — which is what §15 predicts — and the paper's
+  claim rests on Category A and D, where authority and typed guards are
+  doing work a bitemporal table cannot.
