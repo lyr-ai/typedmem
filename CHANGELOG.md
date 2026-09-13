@@ -5,12 +5,16 @@ All notable changes to TypedMemory.
 ## [Unreleased]
 
 ### Added
+- **Replayable event log.** Every state-changing `MemoryEvent` now carries full `before` / `after` snapshots in `payload` — `{"snapshot_version": 1, "version": <int>, "before": <Memory.to_dict() | None>, "after": <Memory.to_dict() | None>}`. Snapshots are plain JSON values taken at the instant of the change (store-internal `_embedding` / `_embedder_id` cache keys are stripped), identical across the in-memory, JSONL, and SQLite backends. `add`/`create`: `before=None`; `delete`: `after=None`; replace / reinforce / supersede / flag / evolver updates: both.
+- `typedmem.replay(events, *, strict=True) -> dict[str, Memory]` and `MemoryStore.replay()`: fold an ordered event stream into memory state by applying `after` snapshots. **Replay never consults a `PolicyEngine`** — it restores recorded outcomes, so the same log replays identically under any current policy. Legacy events without snapshots raise `ReplayError` in strict mode and are skipped otherwise. Also exported: `SNAPSHOT_VERSION`, `snapshot()`, `MemoryEvent.has_snapshot` / `.before` / `.after`.
 - **Temporal validity: `Memory.valid_from` / `Memory.valid_to`.** `timestamp` is now unambiguously *observation time*; the new half-open window `[valid_from, valid_to)` says when the *content holds*. Both default to `None` (= unspecified, persisted as such); `Memory.effective_from` is the operational fallback (`valid_from or timestamp`) and `Memory.is_valid_at(t)` tests the window. `valid_from` may be later than `timestamp` (a declared future state). An empty or inverted window raises `ValueError` at construction.
 - `typedmem.retrieval.filter_valid()` and a `include_expired` flag on `resolve_temporal()`.
 - SQLite stores automatically migrate existing databases to add the two nullable columns; JSONL/in-memory records without them load as `None`.
 - Server `MemoryIn`/`MemoryOut`, CLI `add --valid-from/--valid-to`, and the TypeScript client types carry the new fields.
 
 ### Changed
+- `REINFORCE` now emits a `reinforced` event even when the incoming memory brings no new unique source. The record still mutates in that case (confidence, tags, version), and an unlogged mutation would leave the log un-replayable. Reason reads `+0 source(s): corroboration from already-known sources`.
+- SQLite event queries order by `timestamp, rowid` so events emitted in the same microsecond (e.g. the `superseded` / `supersedes` pair) keep insertion order.
 - `resolve_temporal()` now keeps only memories valid at `as_of` (default: **now**) — expired *and* future-valid memories are excluded — and does so **before** `latest_per_slot`, so a future `valid_from` cannot shadow the current state. `latest_per_slot` orders by `effective_from` and accepts `as_of`.
 - `RetrievalFilters.as_of` matches against the validity window (`is_valid_at`) instead of `timestamp <= as_of`.
 - `PolicyEngine.resolve()` judges "older incoming" under `REPLACE` by `effective_from` rather than `timestamp`: a freshly observed memory describing an *earlier* state no longer overwrites the current one.

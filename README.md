@@ -329,6 +329,15 @@ for e in mem.store.changed_since(since):
 
 Each event carries `memory_id`, `workspace`, `type`, `subject`, `action`, `source` (one of `"store"` / `"evolver"` / `"agent"` / `"user"` / `"system"`), `source_name`, `reason`, `input_ids`, `output_ids`, `payload`, `timestamp`. Delete events outlive the memory row — `changed_since()` surfaces deletions to consumers staying in sync.
 
+The log is **replayable**. Every state-changing event carries full `before` / `after` snapshots of the memory (`Memory.to_dict()` values) in `payload`, so each event is self-contained:
+
+```python
+state = mem.store.replay()          # {memory_id: Memory}, rebuilt purely from the log
+assert {m.id for m in mem.store} == set(state)
+```
+
+`replay` applies recorded *outcomes* in order — it never re-runs a `ConflictPolicy` — so changing a policy tomorrow does not change what yesterday's log replays to. Events written before v0.9 have no snapshots; they remain readable, and `replay(strict=False)` skips them.
+
 ## Evolution
 
 Evolvers read stored memories and produce auditable actions.

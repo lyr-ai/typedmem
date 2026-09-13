@@ -17,6 +17,18 @@ Sources distinguish *where* a change originated:
 ``source_name`` carries the specific producer ("drift_detector",
 "AgentMemory.remember", "migrate_evolution_history") so debugging doesn't
 have to guess.
+
+v0.9 makes the log **replayable**. Every state-changing event carries full
+``before`` / ``after`` snapshots of the memory in ``payload``::
+
+    {"snapshot_version": 1, "version": <int>, "before": <dict|None>, "after": <dict|None>}
+
+Snapshots are ``Memory.to_dict()`` values (plain JSON data, never object
+references) taken at the instant of the change, so an event is self-contained:
+``after`` *is* the memory's state once the event has happened, and
+``after=None`` means it no longer exists. Replaying a log therefore applies
+outcomes — it never re-runs a policy. Events written before v0.9 have no
+snapshots (``has_snapshot`` is False) and can be read but not replayed.
 """
 
 from __future__ import annotations
@@ -24,10 +36,30 @@ from __future__ import annotations
 import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
+
+if TYPE_CHECKING:
+    from .schema import Memory
 
 EventSource = Literal["store", "evolver", "agent", "user", "system"]
+
+# Bumped only when the shape of a snapshot (``Memory.to_dict()``) changes in a
+# way a replayer must know about. Purely a marker; no migration machinery.
+SNAPSHOT_VERSION = 1
+
+
+def snapshot(m: "Memory | None") -> dict[str, Any] | None:
+    """Canonical event snapshot of a memory: ``Memory.to_dict()`` minus the
+    underscore-prefixed metadata keys stores use as caches (``_embedding``,
+    ``_embedder_id``). ``to_dict`` copies every nested container, so the
+    result is an immutable-by-construction value that later mutation of ``m``
+    cannot touch. Same function for every store backend."""
+    if m is None:
+        return None
+    d = m.to_dict()
+    d["metadata"] = {k: v for k, v in d["metadata"].items() if not k.startswith("_")}
+    return d
 
 EVENT_SOURCES: frozenset[str] = frozenset(
     {"store", "evolver", "agent", "user", "system"}
@@ -60,6 +92,24 @@ class MemoryEvent:
                 f"MemoryEvent.source must be one of {sorted(EVENT_SOURCES)}, "
                 f"got {self.source!r}"
             )
+
+    # ── snapshot accessors (v0.9) ──────────────────────────────────────
+    @property
+    def has_snapshot(self) -> bool:
+        """True if this event carries before/after state and can be replayed."""
+        return "snapshot_version" in self.payload
+
+    @property
+    def before(self) -> dict[str, Any] | None:
+        """Memory state before the change (``None`` for a creation, or for a
+        legacy event without snapshots)."""
+        return self.payload.get("before")
+
+    @property
+    def after(self) -> dict[str, Any] | None:
+        """Memory state after the change (``None`` for a deletion, or for a
+        legacy event without snapshots)."""
+        return self.payload.get("after")
 
     def to_dict(self) -> dict[str, Any]:
         d = asdict(self)

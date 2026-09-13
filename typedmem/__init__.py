@@ -14,7 +14,7 @@ magic — the agent's beliefs are auditable because the contracts are explicit.
 
 from .agent import AgentMemory, AgentMemoryReflection
 from .embeddings import EmbeddingProvider, HashingEmbeddingProvider, cosine
-from .events import EVENT_SOURCES, EventSource, MemoryEvent
+from .events import EVENT_SOURCES, SNAPSHOT_VERSION, EventSource, MemoryEvent, snapshot
 from .evolvers import (
     ContradictionSurfacer,
     EvolutionRecord,
@@ -49,6 +49,7 @@ from .policy import (
 )
 from .profiles import DomainProfile, TypeSpec
 from .prompts import PROMPTS
+from .replay import ReplayError, replay
 from .retrieval import RetrievalIntent, TypedRetriever, route_query
 from .retriever import RelevanceWeights, Retriever, ScoredMemory
 from .schema import GoalStatus, Memory, MemoryType
@@ -65,6 +66,7 @@ __version__ = "0.8.0"
 __all__ = [
     "DEFAULT_POLICIES",
     "EVENT_SOURCES",
+    "SNAPSHOT_VERSION",
     "AgentMemory",
     "AgentMemoryReflection",
     "AnthropicClient",
@@ -103,6 +105,7 @@ __all__ = [
     "PolicyEngine",
     "PreferenceDriftDetector",
     "RelevanceWeights",
+    "ReplayError",
     "RetrievalIntent",
     "Retriever",
     "RuleBasedExtractor",
@@ -119,6 +122,8 @@ __all__ = [
     "TypedRetriever",
     "__version__",
     "cosine",
+    "replay",
     "revert_goal_resolution",
     "route_query",
+    "snapshot",
 ]

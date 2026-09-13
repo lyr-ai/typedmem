@@ -11,7 +11,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Iterable, Iterator
 
-from ..events import EVENT_SOURCES, EventSource, MemoryEvent
+from ..events import EVENT_SOURCES, SNAPSHOT_VERSION, EventSource, MemoryEvent
 from ..kernel import (
     ConfidenceStrategy,
     DefaultLifecycleStrategy,
@@ -39,11 +39,18 @@ def _record_lifecycle_event(
     reason: str,
     source: EventSource = "store",
     source_name: str | None = None,
+    before: dict | None,
+    after: dict | None,
 ) -> None:
     """Emit a MemoryEvent for a lifecycle change. Replaces the v0.4.2
     ``metadata["evolution_history"]`` write — the event log is now indexed
     storage with no 50-entry cap, and ``evolution_history(memory_id)`` reads
-    back through this same log."""
+    back through this same log.
+
+    ``before`` / ``after`` are ``events.snapshot()`` values taken by the caller
+    at the right instants (the engine owns the mutation, so it owns the
+    snapshot timing). They are required so no state change can be logged
+    without being replayable."""
     event = MemoryEvent(
         memory_id=m.id,
         workspace=m.workspace,
@@ -55,9 +62,14 @@ def _record_lifecycle_event(
         reason=reason,
         input_ids=list(input_ids),
         output_ids=list(output_ids),
-        # Record the resulting version so the timeline is a full audit trail
-        # (RFC-0001 version invariant).
-        payload={"version": m.version},
+        # ``version`` is the resulting version (RFC-0001 invariant); the
+        # snapshots make the event self-contained for ``replay``.
+        payload={
+            "version": m.version,
+            "snapshot_version": SNAPSHOT_VERSION,
+            "before": before,
+            "after": after,
+        },
     )
     store._append_event(event)
 
@@ -257,6 +269,14 @@ class MemoryStore(ABC):
             out.append(e)
         out.sort(key=lambda e: e.timestamp)
         return out
+
+    def replay(self, *, strict: bool = True) -> dict[str, Memory]:
+        """Rebuild ``{memory_id: Memory}`` purely from this store's event log,
+        applying recorded outcomes in order — no policy is consulted. With a
+        fully replayable log the result equals the live state; see
+        ``typedmem.replay.replay`` for ``strict`` semantics on legacy events."""
+        from ..replay import replay as _replay
+        return _replay(self.timeline(), strict=strict)
 
     def changed_since(self, timestamp: datetime) -> list[MemoryEvent]:
         """All events strictly after ``timestamp``, oldest first. The canonical
