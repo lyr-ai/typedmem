@@ -311,6 +311,7 @@ accuracy.
 | **corruption rate** | correct states overwritten by lower-quality evidence / opportunities for such corruption | A |
 | **end-to-end answer accuracy** | final natural-language answer semantically correct; kept separate from state accuracy | B |
 | **end-task utility** (Phase 2B+) | task success, steps to completion, clarification questions asked, latency — on a task the agent performs *using* the memory, not a question about the memory | B, §24 |
+| **repeated failure rate** (Phase 2B+) | previously-known failure patterns repeated ÷ opportunities to repeat them — the memory exists because run 1 failed; did run 2 fail the same way? | B, §24 |
 
 Corruption rate is often more interpretable than accuracy for authority
 scenarios: *"provenance-aware resolution reduced state corruption from X% to
@@ -508,6 +509,7 @@ framing second, into the roadmap third. **None of them opens a PR now.**
 | **replay + policy versioning** (shashank_magic) | replay should restore historical outcomes, not re-run the current policy; policy versions are part of decision provenance | **replay determinism** — a Mode A check, not an accuracy ablation (§3): same event log, two policy versions, identical replayed state. Policy migration and decision provenance stay on the roadmap (§3, §23), not in this phase. |
 | **SCD / data warehousing** (presentofai) | validity windows and supersession are slowly-changing dimensions; a bitemporal table has done this for decades | **SCD baseline** — the most important item here, because it is the reviewer attack. Validity and supersession are *not* the novelty. V0-scd (§6) is the strong baseline; the claim under test is narrower: agent memory adds *noisy, inferred, provenance-dependent* updates, and a bitemporal table has no notion of which writer was entitled to write. Category A and D are where that shows; on Category B alone, V0-scd should match V3, and the matrix (§15) says so. |
 | **end-task utility / domain specificity** (bestjaegerpilot) | memory correctness is intrinsic; what matters is whether the agent does the task better — and that is domain-specific | **end-task utility** — a third evaluation layer above Mode A and Mode B (§14): task success, bug rate, steps, latency, clarification count on a task the agent performs *with* the memory. Coding is the natural first domain and doubles as the external-domain validation of §20. Not in the pilot; in Phase 2B. |
+| **memory as recorded failure** (bestjaegerpilot, follow-up) | in practice their memories are not extracted — they are written by hand after the same mistake has bitten twice: *"do not modify the generated schema; update the source and regenerate."* There is no formal evaluation; the test is whether the mistake recurs | **repeated failure rate** (§14) — the most direct extrinsic metric for coding-agent memory: run 1 performs X and fails; a memory records *don't X, do Y*; run 2 is a similar-not-identical task; did the agent repeat X? Cheaper and closer to the real use than a productivity study. It also supplies a *realistic provenance source*: a memory verified by an actual failure sits somewhere between an explicit instruction and a model inference. That ordering is future scenario material (Category A, `source_type = verified_failure`), **not** a change to the authority hierarchy now. |
 
 Two consequences for the paper framing, recorded here so they are not
 rediscovered after the results are in:
@@ -521,3 +523,12 @@ rediscovered after the results are in:
   correct and unoriginal — which is what §15 predicts — and the paper's
   claim rests on Category A and D, where authority and typed guards are
   doing work a bitemporal table cannot.
+
+The thread as a whole is a small qualitative requirements set, and the same
+themes recur independently: provenance and recency must be separated; a
+global ordering breaks and memory classes need their own semantics; long
+histories end in compaction and materialisation problems rather than in
+contradiction; bitemporality and supersession are real long-horizon needs;
+replay has to survive policy evolution; SCD is the mature baseline; and end
+utility can be *not repeating a failure that already happened*. None of it
+widens the current Mode A scope. It says how Phase 2B should be built.
