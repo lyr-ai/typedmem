@@ -51,3 +51,4 @@ nav:
   - CLI: cli.md
   - Server (HTTP): server.md
   - Evaluation plan: evaluation-plan.md
+  - Backlog (observed failure patterns): backlog-observed-failure-patterns.md
