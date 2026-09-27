@@ -39,7 +39,7 @@ TypedMemory makes that visible.
 ## The contradiction-detection moment
 
 ```bash
-$ pip install typedmem
+$ pip install typedmem          # Python 3.10+
 
 $ typedmem --profile engineering_design add \
     "SQLite handles our single-writer load fine" --type risk --subject storage
@@ -409,11 +409,9 @@ Default store: `~/.typedmem/memories.db` (override with `--store path.db` or `--
 
 ## Status & roadmap
 
-Latest: **v0.6.0** — typed memory timeline (this release): every change emits a `MemoryEvent`; `store.history()` / `timeline()` / `changed_since()` give you the canonical change feed.
+Latest release: **v0.8.0** — governed state transitions: every write goes through one `TransitionEngine` (versions, optimistic concurrency, lifecycle validation). See the [CHANGELOG](CHANGELOG.md) for v0.4–v0.7 (profiles, `AgentMemory`, event timeline, HTTP server) and for unreleased work on `main`.
 
-Prior: **v0.5.0** — `AgentMemory` four-verb contract (`remember` / `recall` / `reflect` / `forget`); **v0.4.x** — profiles, workspaces, evolvers, conflict-resolution audit trail.
-
-Under consideration for **v0.7+**, only if real usage demands it:
+Under consideration next, only if real usage demands it:
 
 - `VersionPolicy` as a separate per-type axis (deferred from v0.6 — overlapped messily with `ConflictPolicy`)
 - Sync / replication engine on top of `changed_since()`
