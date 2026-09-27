@@ -204,7 +204,7 @@ TypedMem is intentionally narrow:
 - **Not a general-purpose retrieval engine.** We don't compete on benchmark recall. If retrieval quality is your bottleneck, you're in the wrong place.
 - **Not a hosted memory cloud.** The v0.7 server is BYO-deploy: Cloud Run, Docker, systemd — your hosting choice.
 - **Not a plug-and-play layer for agent frameworks.** We don't ship LangChain / CrewAI / AutoGen adapters. The wire format is REST + JSON; bring your own integration.
-- **Not a "memory that learns" black box.** No implicit consolidation, no learned dedup, no opaque merging. Every state change goes through a `ConflictPolicy` you declared.
+- **Not a "memory that learns" black box.** No implicit consolidation, no learned dedup, no opaque merging. Typed memories resolve changes through the `ConflictPolicy` you declared; states use the fixed validity-time and authority rules described above ([`docs/states.md`](docs/states.md)).
 
 If those omissions sound like features to you, you're the audience.
 
@@ -278,9 +278,10 @@ pip install 'typedmem[server]'
 typedmem --store agent.db serve --api-token $(openssl rand -hex 32)
 ```
 
-REST API under `/v1/`, interactive docs at `/docs`. Same surface as the
-Python library — `add`, `get`, `delete`, `list`, `recall`, `history`,
-`timeline`, `changed-since`, `reflect`. Works on Cloud Run + GCS FUSE,
+REST API under `/v1/`, interactive docs at `/docs`. The HTTP API exposes the
+typed-memory surface: `add`, `get`, `delete`, `list`, `recall`, `history`,
+`timeline`, `changed-since`, `reflect`. State `set` / `get` / `history` is
+currently available through Python and the CLI, not HTTP. Works on Cloud Run + GCS FUSE,
 plain Docker, or systemd. Full deploy guide: [`docs/server.md`](docs/server.md).
 
 ## 60-second demo: an engineering design agent
