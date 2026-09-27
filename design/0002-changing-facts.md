@@ -110,6 +110,23 @@ disagree with each other about what came next*.
 - An earlier value from a *stronger* source is not ended by weaker claims.
   It stays in the conflict.
 
+**Open-ended claims (owner decision D2, 2026-09-27).** A later start time
+doesn't imply that an earlier open-ended claim has ended. When overlapping
+claims can't be put in time order without inventing an end date, they stay
+in conflict. When their authority differs, authority keeps a weaker
+overlapping claim from silently ending a stronger one.
+
+- A user says "San Jose since 2024" (no end); a weaker inference says
+  "Seattle since August 2026". The claims overlap, and nothing says San Jose
+  ended, so they conflict. Making Seattle current would invent the fact
+  "San Jose ended before August 2026", on the word of the weaker source.
+- By contrast, a weaker claim that *starts earlier* than the current value
+  describes the past, and goes into history: time order is known.
+
+Measured on reliagent-bench Mode A (A-02 conflict, kept as a deliberate
+disagreement with that benchmark's gold; A-08 history, correct): see
+[the results](https://github.com/lyr-ai/reliagent-bench/blob/measure/states-0.9.3/external/results/states-0.9.3.md).
+
 *Correction, 0.9.1:* 0.9.0 kept every earlier value in the conflict (Free
 above). That violated this section's own definition, since Free and
 Enterprise can be put in time order. It was found while checking design
