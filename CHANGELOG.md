@@ -2,6 +2,14 @@
 
 All notable changes to TypedMem (named TypedMemory before 0.9; older entries keep the name they shipped with).
 
+## [0.9.3] — 2026-09-27
+
+### Changed
+- Docs: the Quickstart opens with states (contract-tested, like the README and the States page); Concepts says up front that it covers the typed-memory core, and that states, unlike typed memories, close a value's window where the next begins.
+
+### Fixed
+- **Every read path agrees with `get`/`history` about which state values are in effect (#7).** `list` / `store.all()` / `by_type()`, `Retriever` (recall, tag and type filters) and `len(AgentMemory)` resolve states as of now, instead of reading the `superseded_by` index written at `set` time. After a future-dated value takes effect, `list` shows it (not the old value); in a conflict, every contending value is listed, as `get` reports them.
+
 ## [0.9.2] — 2026-09-27
 
 ### Fixed

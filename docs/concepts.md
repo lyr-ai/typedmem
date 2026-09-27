@@ -1,5 +1,7 @@
 # Concepts
 
+> This page covers the typed-memory core. For **states** (`set` / `get` / `history`), the main API, start with [States](states.md).
+
 Four primitives carry the design.
 
 ## Memory
@@ -48,7 +50,7 @@ Fields:
 
 `Memory.effective_from` is the operational fallback: `valid_from` if declared, else `timestamp`. `Memory.is_valid_at(t)` tests the half-open window `[effective_from, valid_to)` — half-open so that `A.valid_to == B.valid_from` yields exactly one valid state at the switch-over instant. A `valid_to` at or before `effective_from` is rejected at construction.
 
-`valid_from` may be in the future relative to `timestamp`. `resolve_temporal()` filters to memories valid at `as_of` (default: now) **before** collapsing single-valued slots to their newest member, so a declared future state never shadows the current one; it becomes the answer once `as_of` passes its `valid_from`. Nothing closes a window automatically — `REPLACE`/`SUPERSEDE` do not set the old memory's `valid_to`. That is a per-type decision reserved for a later resolution-rule contract.
+`valid_from` may be in the future relative to `timestamp`. `resolve_temporal()` filters to memories valid at `as_of` (default: now) **before** collapsing single-valued slots to their newest member, so a declared future state never shadows the current one; it becomes the answer once `as_of` passes its `valid_from`. For typed memories, nothing closes a window automatically: `REPLACE`/`SUPERSEDE` do not set the old memory's `valid_to`. **States are different:** a state's value ends where the next value begins, and a value that arrives late takes its place in history by its validity time (see [States](states.md)).
 
 `Memory.type` is plain `str` so profiles can register custom types. The `MemoryType` enum (`MemoryType.FACT == "fact"`, etc.) is kept as a back-compat alias.
 

@@ -71,10 +71,8 @@ class Retriever:
 
     def by_tag(self, tag: str, *, workspace: str | None = None,
                include_superseded: bool = False) -> list[Memory]:
-        ws = workspace if workspace is not None else self.store.default_workspace
-        return [m for m in self.store
-                if tag in m.tags and m.workspace == ws
-                and (include_superseded or m.superseded_by is None)]
+        return [m for m in self.store.all(workspace=workspace, include_superseded=include_superseded)
+                if tag in m.tags]
 
     def recent(self, limit: int = 10, *, workspace: str | None = None,
                include_superseded: bool = False) -> list[Memory]:
@@ -126,12 +124,7 @@ class Retriever:
     ) -> list[Memory]:
         out: list[Memory] = []
         tagset = set(tags) if tags else None
-        ws = workspace if workspace is not None else self.store.default_workspace
-        for m in self.store:
-            if m.workspace != ws:
-                continue
-            if not include_superseded and m.superseded_by is not None:
-                continue
+        for m in self.store.all(workspace=workspace, include_superseded=include_superseded):
             if types and m.type not in types:
                 continue
             if tagset and not tagset.intersection(m.tags):

@@ -24,7 +24,7 @@ from typedmem.cli import main
 
 ROOT = Path(__file__).resolve().parents[1]
 README = ROOT / "README.md"
-CONTRACT_FILES = [README, ROOT / "docs" / "states.md"]
+CONTRACT_FILES = [README, ROOT / "docs" / "states.md", ROOT / "docs" / "quickstart.md"]
 README_TODAY = "2026-09-27"
 BLOCK = re.compile(r"<!-- contract[^>]*-->\s*```(\w+)\n(.*?)```", re.S)
 

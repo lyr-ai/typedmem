@@ -302,6 +302,9 @@ class SQLiteMemoryStore(MemoryStore):
                 "SELECT * FROM memories WHERE type=? AND workspace=?",
                 (type_str, ws),
             ).fetchall()
+        elif type_str == "state":
+            # states: in effect now per resolve(), not the superseded_by index (#7)
+            return super().by_type(type_str, workspace=ws)
         else:
             rows = self._conn.execute(
                 "SELECT * FROM memories WHERE type=? AND workspace=? AND superseded_by IS NULL",

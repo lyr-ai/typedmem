@@ -505,7 +505,7 @@ Default store: `~/.typedmem/memories.db` (override with `--store path.db` or `--
 
 ## Status & roadmap
 
-Latest release: **v0.9.2**. States (`set` / `get` / `history`) arrived in 0.9.0; 0.9.1 fixed which values count as a conflict; 0.9.2 fixes the message when a late record confirms a past value, and documents states on the docs site. Before that, **v0.8.0**: governed state transitions (one `TransitionEngine` for every write). See the [CHANGELOG](CHANGELOG.md) for v0.4–v0.7 (profiles, `AgentMemory`, event timeline, HTTP server).
+Latest release: **v0.9.3**. States (`set` / `get` / `history`) arrived in 0.9.0; 0.9.1 fixed which values count as a conflict; 0.9.2 fixed the message for confirmed past values and documented states; 0.9.3 makes every read path (`list`, recall, `len`) agree with `get` about which values are in effect (#7). Before that, **v0.8.0**: governed state transitions. See the [CHANGELOG](CHANGELOG.md) for v0.4–v0.7 (profiles, `AgentMemory`, event timeline, HTTP server).
 
 Under consideration next, only if real usage demands it:
 

@@ -273,7 +273,4 @@ class AgentMemory:
         self.close()
 
     def __len__(self) -> int:
-        return sum(
-            1 for m in self.store
-            if m.workspace == self.workspace and m.superseded_by is None
-        )
+        return len(self.store.all(workspace=self.workspace))
