@@ -35,3 +35,11 @@ def test_explorer_scenarios_say_what_design_0003_promises():
     assert conflict["final"]["current"] is None
     assert conflict["final"]["conflict"] == ["Enterprise", "Pro"]
     assert {h["value"]: h["status"] for h in conflict["final"]["history"]}["Free"] == "previous"
+
+
+def test_a_version_bump_alone_does_not_change_the_data(monkeypatch):
+    import typedmem
+    gen = load_generator()
+    before = gen.build()
+    monkeypatch.setattr(typedmem, "__version__", "99.0.0")
+    assert gen.build() == before
