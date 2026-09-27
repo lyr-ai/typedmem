@@ -1,9 +1,9 @@
 # Design 0003 — Temporal Truth Explorer
 
-**Status:** Proposed  
+**Status:** Accepted 2026-09-26, with the decisions in section 22  
 **Product:** TypedMem  
 **Scope:** Interactive product explanation / visualization  
-**Target release:** After v0.9.0; must not block v0.9.0 release  
+**Target release:** After v0.9.1 (the scenario 3 fix); must not block distribution  
 **Working title:** Temporal Truth Explorer  
 **Visual family:** Reliable AI Systems / editorial scientific style  
 **Primary question:** *What was true then, and what is true now?*
@@ -345,24 +345,9 @@ The visualization must not show a winner when the product would raise a conflict
 
 ---
 
-# 7. Optional Scenario 4 — Authority resolves a conflict
+# 7. Scenario 4 — Authority resolves a conflict (out of v1 scope)
 
-Do **not** include this in v1 unless the first three scenarios are already clear.
-
-It may later demonstrate a stronger source resolving uncertainty.
-
-For example:
-
-```text
-agent inference → Pro
-billing record → Enterprise
-```
-
-The important principle remains:
-
-> authority can resolve evidence; it does not rewrite history.
-
-This scenario should only be added if it maps exactly to the frozen TypedMem semantics.
+**Removed from v1.** Under current semantics, stronger authority alone does not resolve a same-time conflict; resolution requires later evidence (design 0002 §4). Showing it would add a second temporal rule to the first explorer. Kept as future work; no animation.
 
 ---
 
@@ -821,20 +806,16 @@ If those answers require explaining TypedMem first, the visualization has failed
 
 Do **not** block v0.9.0 on this work.
 
-Order:
+Order (revised 2026-09-26: distribution does not wait for the explorer):
 
 ```text
-1. Release TypedMem v0.9.0
-2. Verify clean PyPI install and changing-state README contract
-3. Build scenario generator from real TypedMem API
-4. Prototype the three temporal visual states
-5. Choose/finalize the TypedMem visual language
-6. Build the interactive explorer
-7. Generate static README/blog preview
-8. Add "Explore how truth changes →" to README
-9. Publish explorer
-10. Record short animation
-11. Redistribute TypedMem using the visual story
+1. Release the 0.9.x correctness fix (0.9.1: conflict sets contain only
+   simultaneously plausible values)
+2. Share the plain changing-facts story
+3. Build the scenario generator from the real TypedMem API
+4. Build the explorer
+5. Update the README to the canonical account.plan example + explorer link
+6. Redistribute with the visual story
 ```
 
 The main product hypothesis being tested remains:
@@ -842,3 +823,13 @@ The main product hypothesis being tested remains:
 > **Does the changing-facts problem that previously generated discussion actually convert into installs, stars, questions, and real usage when the product makes the solution obvious?**
 
 The visualization exists to make that product idea easier to understand. It should not become a reason to postpone testing it.
+
+---
+
+# 22. Decisions (2026-09-26)
+
+1. **Scenario 3 depends on 0.9.1.** 0.9.0 wrongly kept the earlier value (Free) in the conflict. Fixed in 0.9.1 under the invariant in design 0002 §4: a conflict set contains only values that remain simultaneously plausible at the queried time. Verified from a fresh PyPI install: scenario 3 gives exactly `Enterprise` vs `Pro`, with Free as history.
+2. **Scenario 4 is out of v1** (section 7).
+3. **One canonical example.** When the explorer lands, the README moves from `alice.employer` to `account.plan`. The README contract test keeps the transcript real.
+4. **Location.** The explorer is a standalone static page in this repo's docs site, at `https://lyr-ai.github.io/typedmem/explorer/`, outside the main mkdocs nav. It can't live in the blog repo: this repo's project Pages site owns `/typedmem/`.
+5. **Distribution first.** The plain changing-facts story is shared before the explorer exists. The explorer is the second wave (section 21).
