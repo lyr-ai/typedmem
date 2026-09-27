@@ -16,8 +16,8 @@ alice.employer = Anthropic  (was OpenAI)
 $ typedmem get alice.employer
 Anthropic
 $ typedmem history alice.employer
-current    Anthropic   since 2026-09-27          source: cli
-previous   OpenAI      2026-09-27 → 2026-09-27   source: cli
+Anthropic   current    source: cli
+OpenAI      previous   source: cli
 ```
 
 **What breaks without it:** most agent memory stores both sentences and
@@ -37,12 +37,12 @@ mem.set("alice.employer", "Anthropic", source="email from Alice")
 mem.get("alice.employer")        # 'Anthropic'
 ```
 
-[![CI](https://github.com/canis-minor/typedmem/actions/workflows/ci.yml/badge.svg)](https://github.com/canis-minor/typedmem/actions/workflows/ci.yml)
+[![CI](https://github.com/lyr-ai/typedmem/actions/workflows/ci.yml/badge.svg)](https://github.com/lyr-ai/typedmem/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/typedmem.svg)](https://pypi.org/project/typedmem/)
 [![Python](https://img.shields.io/pypi/pyversions/typedmem.svg)](https://pypi.org/project/typedmem/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-📦 [PyPI](https://pypi.org/project/typedmem/) · 📚 [Docs](https://canis-minor.github.io/typedmem/) · 🏷️ [Releases](https://github.com/canis-minor/typedmem/releases) · 📝 [Changelog](CHANGELOG.md)
+📦 [PyPI](https://pypi.org/project/typedmem/) · 📚 [Docs](https://lyr-ai.github.io/typedmem/) · 🏷️ [Releases](https://github.com/lyr-ai/typedmem/releases) · 📝 [Changelog](CHANGELOG.md)
 
 ## How it decides
 
@@ -58,17 +58,17 @@ $ typedmem set alice.employer Anthropic --valid-from 2024-01-15
 alice.employer = Anthropic  (was OpenAI)
 $ typedmem set alice.employer Google --valid-from 2022-06-01
 alice.employer: recorded Google from 2022-06-01 as a past value; current is Anthropic
-$ typedmem history alice.employer
-current    Anthropic   since 2024-01-15          source: cli
-previous   Google      2022-06-01 → 2024-01-15   source: cli
-previous   OpenAI      2021-03-01 → 2022-06-01   source: cli
+$ typedmem history alice.employer -v
+Anthropic   current    since 2024-01-15          source: cli
+Google      previous   2022-06-01 → 2024-01-15   source: cli
+OpenAI      previous   2021-03-01 → 2022-06-01   source: cli
 $ typedmem set alice.employer Meta --source "agent guess" --authority 0.5
 alice.employer: CONFLICT: Meta disagrees with Anthropic; no current value
   see: typedmem history alice.employer
 $ typedmem get alice.employer
 alice.employer: CONFLICT, no current value
-conflict   Meta        since 2026-09-27   source: agent guess (authority 0.5)   vs Anthropic
-conflict   Anthropic   since 2024-01-15   source: cli                           vs Meta
+Meta        conflict   source: agent guess (authority 0.5)   vs Anthropic
+Anthropic   conflict   source: cli                           vs Meta
 ```
 
 - **Change is resolved.** The value that became true latest is current:
@@ -487,7 +487,7 @@ Default store: `~/.typedmem/memories.db` (override with `--store path.db` or `--
 
 ## Status & roadmap
 
-Latest release: **v0.8.0** — governed state transitions: every write goes through one `TransitionEngine` (versions, optimistic concurrency, lifecycle validation). See the [CHANGELOG](CHANGELOG.md) for v0.4–v0.7 (profiles, `AgentMemory`, event timeline, HTTP server) and for unreleased work on `main`.
+Latest release: **v0.9.0**, states: `set` / `get` / `history` for values that change over time, with conflicts exposed rather than guessed. Before that, **v0.8.0**: governed state transitions (one `TransitionEngine` for every write). See the [CHANGELOG](CHANGELOG.md) for v0.4–v0.7 (profiles, `AgentMemory`, event timeline, HTTP server).
 
 Under consideration next, only if real usage demands it:
 
@@ -509,3 +509,7 @@ MIT — see [LICENSE](LICENSE).
 ## Contributing
 
 Issues and PRs welcome. Please run `pytest` and the demos in `examples/` before opening a PR; CI runs them on Python 3.10/3.11/3.12.
+
+---
+
+Also from lyr-ai: [AgentSeism](https://github.com/lyr-ai/agentseism), regression decisions for stochastic AI systems.

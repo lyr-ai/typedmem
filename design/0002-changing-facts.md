@@ -167,6 +167,27 @@ CLI `history` currently takes a memory id. It will also accept a key: an
 argument that is an existing memory id keeps today's behaviour, and anything
 else is read as a key.
 
+### 5c. Presentation
+
+`history` shows the transition by default: value, status and source, newest
+first. `history -v` (and `StateHistory.table(dates=True)`) adds each value's
+validity window. The first thing a user sees is *what changed*. *When* it
+changed is one flag away.
+
+Storage keeps every claim, and presentation may summarise them. For example,
+a value first guessed by an agent and later confirmed by an email is two
+records. A future view may draw them as one value with two sources.
+
+## Known issues
+
+- **`list` can disagree with `get`/`history` after a scheduled value takes
+  effect.** `list` / `all()` read the `superseded_by` index, which is written
+  as of the last `set` on that key. `get` and `history` resolve as of now.
+  Values that aren't future-dated are unaffected. There's a strict-xfail test
+  (`test_list_agrees_with_get_after_a_scheduled_value_takes_effect`). The fix
+  is for `list` to resolve states with the same as-of semantics. The GitHub
+  issue gets opened together with the 0.9 PR.
+
 ## Out of scope for this change
 
 - **Natural-language extraction**: `add "Alice works at Anthropic"` giving

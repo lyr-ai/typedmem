@@ -235,20 +235,24 @@ def _provenance(e: StateEntry) -> str:
     return f"source: {ids}{auth}"
 
 
-def format_entries(es: list[StateEntry]) -> str:
-    """The history table the CLI prints and ``StateHistory`` shows in a REPL."""
+def format_entries(es: list[StateEntry], *, dates: bool = False) -> str:
+    """The history table the CLI prints and ``StateHistory`` shows in a REPL:
+    value, status and source, newest first. ``dates=True`` adds each value's
+    validity window (``history -v``)."""
     if not es:
         return "(no history)"
     rows = []
     for e in es:
-        if e.status == "previous":
+        if not dates:
+            window = ""
+        elif e.status == "previous":
             window = f"{_day(e.valid_from)} → {_day(e.valid_to) if e.valid_to else '?'}"
         elif e.status == "scheduled":
             window = f"from {_day(e.valid_from)}"
         else:
             window = f"since {_day(e.valid_from)}"
         note = f"vs {', '.join(e.conflicts_with)}" if e.conflicts_with else ""
-        rows.append((e.status, e.value, window, _provenance(e), note))
+        rows.append((e.value, e.status, window, _provenance(e), note))
     widths = [max(len(r[i]) for r in rows) for i in range(5)]
     return "\n".join(
         "   ".join(c.ljust(w) for c, w in zip(r, widths) if w).rstrip() for r in rows)
@@ -257,6 +261,9 @@ def format_entries(es: list[StateEntry]) -> str:
 class StateHistory(list):
     """``AgentMemory.history``'s return value: a plain list of ``StateEntry``
     (newest first) that prints as the history table."""
+
+    def table(self, *, dates: bool = False) -> str:
+        return format_entries(self, dates=dates)
 
     def __repr__(self) -> str:
         return format_entries(self)

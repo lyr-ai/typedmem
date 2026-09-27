@@ -207,3 +207,17 @@ def test_state_survives_reopen(tmp_path, name):
     assert len(s.contradictions()) == 1
     assert len(s.replay()) == 3
     s.close()
+
+
+@pytest.mark.xfail(strict=True, reason=(
+    "known issue (design 0002): list/all() read the superseded_by index, which is "
+    "written as of the last set; get/history resolve as of now"))
+def test_list_agrees_with_get_after_a_scheduled_value_takes_effect():
+    import time
+    store = InMemoryStore()
+    store.set_state("alice.employer", "OpenAI", valid_from=d("2021-01-01"))
+    store.set_state("alice.employer", "Anthropic",
+                    valid_from=datetime.now(timezone.utc) + timedelta(milliseconds=30))
+    time.sleep(0.06)
+    assert store.get_state("alice.employer") == "Anthropic"
+    assert [m.content for m in store.all()] == ["Anthropic"]

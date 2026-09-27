@@ -306,7 +306,7 @@ def cmd_history(args: argparse.Namespace, store: MemoryStore) -> int:
             if args.json:
                 print(json.dumps([e.to_dict() for e in es], indent=2))
             else:
-                print(format_entries(es))
+                print(format_entries(es, dates=args.verbose))
             return 0
     events = store.history(args.id)
     if not events:
@@ -543,6 +543,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     sh = sub.add_parser("history", help="value history of a state, or event timeline of a memory id")
     sh.add_argument("id", help="a state key (alice.employer) or a memory id")
+    sh.add_argument("-v", "--verbose", action="store_true",
+                    help="for a state key: show when each value was valid")
     sh.add_argument("--json", action="store_true", help="emit MemoryEvent dicts as JSON")
     sh.set_defaults(func=cmd_history)
 

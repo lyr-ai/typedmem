@@ -87,7 +87,7 @@ def create_app(
             "Contract-driven memory for AI agents — over HTTP. "
             "Typed schemas, explicit conflict policies, structured provenance, "
             "typed event timeline. "
-            "See https://github.com/canis-minor/typedmem"
+            "See https://github.com/lyr-ai/typedmem"
         ),
     )
     install_error_handlers(app)

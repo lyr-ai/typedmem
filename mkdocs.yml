@@ -1,8 +1,8 @@
 site_name: TypedMemory
 site_description: Contract-driven memory for AI agents — typed schemas, explicit conflict policies, structured provenance, typed event timeline.
-site_url: https://canis-minor.github.io/typedmem/
-repo_url: https://github.com/canis-minor/typedmem
-repo_name: canis-minor/typedmem
+site_url: https://lyr-ai.github.io/typedmem/
+repo_url: https://github.com/lyr-ai/typedmem
+repo_name: lyr-ai/typedmem
 
 theme:
   name: material

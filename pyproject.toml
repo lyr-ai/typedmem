@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "typedmem"
-version = "0.8.0"
+version = "0.9.0"
 description = "Contract-driven memory for AI agents — typed schemas, explicit conflict policies, structured provenance, typed event timeline."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -26,11 +26,11 @@ classifiers = [
 dependencies = []
 
 [project.urls]
-Homepage = "https://github.com/canis-minor/typedmem"
-Documentation = "https://github.com/canis-minor/typedmem#readme"
-Repository = "https://github.com/canis-minor/typedmem"
-Issues = "https://github.com/canis-minor/typedmem/issues"
-Changelog = "https://github.com/canis-minor/typedmem/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/lyr-ai/typedmem"
+Documentation = "https://github.com/lyr-ai/typedmem#readme"
+Repository = "https://github.com/lyr-ai/typedmem"
+Issues = "https://github.com/lyr-ai/typedmem/issues"
+Changelog = "https://github.com/lyr-ai/typedmem/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 test = ["pytest>=7", "httpx>=0.27"]

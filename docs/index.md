@@ -60,7 +60,7 @@ TypedMemory treats these as first-class concepts.
 
     `typedmem` shell tool — `add`, `search`, `evolve`, `history`, …
 
-- :material-source-repository: **[Source on GitHub](https://github.com/canis-minor/typedmem)**
+- :material-source-repository: **[Source on GitHub](https://github.com/lyr-ai/typedmem)**
 
     Code, tests, issues.
 

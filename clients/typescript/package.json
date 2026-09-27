@@ -30,10 +30,10 @@
     "llm",
     "knowledge"
   ],
-  "homepage": "https://github.com/canis-minor/typedmem",
+  "homepage": "https://github.com/lyr-ai/typedmem",
   "repository": {
     "type": "git",
-    "url": "https://github.com/canis-minor/typedmem.git",
+    "url": "https://github.com/lyr-ai/typedmem.git",
     "directory": "clients/typescript"
   },
   "license": "MIT",
