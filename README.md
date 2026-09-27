@@ -7,17 +7,9 @@ arrives saying it was **Pro** in April.
 
 **Which value is current, and should the newest record win?**
 
-```text
-account.plan
+[![account.plan: Free from Jan 5, Pro from Apr 1, Enterprise from Sep 1 and current. The Pro record arrived last, at now, but it was true in April, so it goes into history and Enterprise stays current.](docs/explorer/truth-through-time.png)](https://lyr-ai.github.io/typedmem/explorer/?s=late)
 
- JAN                 APR                        SEP              NOW
-  FREE ━━━━━━━━━━━━━━○
-                     PRO ━━━━━━━━━━━━━━━━━━━━━━○
-                                                ENTERPRISE ━━━━━━●  CURRENT
-
-  The Pro ticket arrived last, but it was true in April.
-  It goes into history. Enterprise stays current.
-```
+**[▶ Explore how truth changes →](https://lyr-ai.github.io/typedmem/explorer/?s=late)**
 
 **The old value isn't false. It is no longer current.**
 

@@ -5,6 +5,7 @@ All notable changes to TypedMemory.
 ## [Unreleased]
 
 ### Changed
+- **Truth Through Time explorer** (design 0003) at https://lyr-ai.github.io/typedmem/explorer/: facts change, facts arrive late, sources disagree, with an as-of scrubber. Every frame is TypedMem's own answer. `tools/explorer_data.py` generates `docs/explorer/data.js` from the real API, and `tests/test_explorer_data.py` fails on drift. The README's picture is a still of it.
 - README rewritten around the failure it prevents (a late-arriving record must not overwrite the current state). The canonical example is now `account.plan`.
 
 ## [0.9.1] — 2026-09-26
