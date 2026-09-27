@@ -138,6 +138,7 @@ class Resolution:
     records: list[Memory]
     live: list[Memory]
     successor: dict[str, str] = field(default_factory=dict)
+    ended_by: dict[str, list[str]] = field(default_factory=dict)   # the epoch that ended it
     conflicts: dict[str, list[str]] = field(default_factory=dict)
 
     @property
@@ -167,10 +168,16 @@ def _expired(m: Memory, t: datetime) -> bool:
 def resolve(records: list[Memory], as_of: datetime) -> Resolution:
     """Replay the key's values in validity order up to ``as_of``.
 
-    Values that start at the same instant form one *epoch*. An epoch settles
-    the state when it holds a single value and its authority is at least that
-    of every contender holding a different value. Then everything live is
-    superseded by it. Otherwise the epoch joins the contenders.
+    Values that start at the same instant form one *epoch*. The epoch's
+    strength is the authority of its strongest value. An epoch **ends** every
+    value in effect before it whose authority is at most that strength; values
+    that are stronger survive. The epoch's own values and the survivors are
+    then the values in effect: one value means settled, several mean conflict.
+
+    Invariant (design 0002, section 4): a conflict set contains only values
+    that remain simultaneously plausible at the queried time. A value that
+    later claims of at least its authority agree has ended is history, even
+    when those claims disagree about what came next.
     """
     records = sorted(records, key=_order)
     res = Resolution(as_of=as_of, records=records, live=[])
@@ -181,15 +188,15 @@ def resolve(records: list[Memory], as_of: datetime) -> Resolution:
         live = [m for m in live if not _expired(m, start)]
         values = {m.content for m in group}
         strength = max(authority(m) for m in group)
-        settles = len(values) == 1 and all(
-            authority(p) <= strength for p in live if p.content not in values)
-        if settles:
-            winner = max(group, key=_order)
-            for p in live:
-                res.successor[p.id] = winner.id
-            live = group
-        else:
-            live = live + group
+        survivors = [p for p in live
+                     if p.content not in values and authority(p) > strength]
+        for p in live:
+            if p in survivors:
+                continue
+            same = [g for g in group if g.content == p.content]
+            res.successor[p.id] = max(same or group, key=_order).id
+            res.ended_by[p.id] = [g.id for g in group]
+        live = survivors + group
     res.live = [m for m in live if not _expired(m, as_of)]
     if not res.settled:
         for m in res.live:

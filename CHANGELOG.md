@@ -2,7 +2,16 @@
 
 All notable changes to TypedMemory.
 
-## [0.9.0] — unreleased
+## [0.9.1] — unreleased
+
+### Fixed
+- **A conflict set now contains only values that are still plausible at the same time** (design 0002, section 4).
+  - When different values start at the same moment, they end every earlier value whose authority is no higher than theirs, even while disagreeing with each other.
+  - Example: Free (January), then Enterprise (billing) and Pro (CRM) both from 1 September. The conflict is now Enterprise vs Pro, and Free is history. 0.9.0 also listed Free as a contender.
+  - An earlier value from a stronger source still stays in the conflict.
+  - Also: a later value at least as strong as one contender now ends that contender even while another, stronger contender remains.
+
+## [0.9.0] — 2026-09-26
 
 **States: values that change over time.** And the project's home is now https://github.com/lyr-ai/typedmem.
 

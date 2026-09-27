@@ -417,7 +417,9 @@ class MemoryStore(ABC):
                 changes["metadata"] = md
             if succ and "superseded_by" in changes:
                 action = "superseded"
-                reason = f"superseded by {by_id[succ].content!r}"
+                enders = sorted({by_id[i].content for i in res.ended_by.get(m.id, [succ])})
+                reason = (f"superseded by {enders[0]!r}" if len(enders) == 1 else
+                          "ended by conflicting values " + ", ".join(map(repr, enders)))
             elif conf and "metadata" in changes:
                 action = "flagged"
                 reason = "in conflict with " + ", ".join(
