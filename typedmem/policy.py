@@ -97,6 +97,14 @@ DEFAULT_POLICIES: dict[str, TypePolicy] = {
 }
 
 
+# The built-in ``state`` type (design 0002) exists under every profile. Its
+# writes never reach ``resolve``: ``MemoryStore.set_state`` decides them by
+# validity time and authority. The policy is here so that reads which ask
+# every type for its policy (decay, retrieval) work. It says FLAG, not
+# SUPERSEDE, so retrieval never collapses a state's contending values into one.
+STATE_POLICY = TypePolicy(None, False, ConflictPolicy.FLAG)
+
+
 def memory_authority(m: Memory) -> float | None:
     """The authority a memory can claim in conflict resolution: the strongest
     of its sources, or ``None`` when it carries no provenance at all.
@@ -132,6 +140,8 @@ class PolicyEngine:
         key = t.value if isinstance(t, Enum) else t
         if key in self.policies:
             return self.policies[key]
+        if key == "state":
+            return STATE_POLICY
         if self._default is not None:
             return self._default
         raise KeyError(

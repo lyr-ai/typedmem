@@ -2,9 +2,19 @@
 
 All notable changes to TypedMemory.
 
-## [Unreleased]
+## [0.9.0] — unreleased
+
+**States: values that change over time.** And the project's home is now https://github.com/lyr-ai/typedmem.
 
 ### Added
+- **States: named values that change over time** (design/0002-changing-facts.md). `AgentMemory.set(key, value)` / `get(key)` / `history(key)`, the CLI verbs `typedmem set` / `get` / `history <key>`, and `MemoryStore.set_state` / `get_state` / `state_history`.
+  - A state (`alice.employer`) holds one value at a time. The current value is the one that became true latest (`valid_from`, default now), not the one written last. A late-arriving past value goes into history.
+  - A value that can't be ordered against the current one (same start, or later but from a source with lower authority) opens a **conflict**. `get` then raises `StateConflict` (CLI exit 3) rather than picking one, until a later value from a source at least as strong settles it.
+  - Repeating a value adds its source to the existing record.
+  - Values are ordinary `Memory` records of the new built-in `state` type (under every profile), written only through `set_state`; `add()` rejects the type. Every change is a replayable event.
+  - New exports: `SetResult`, `StateConflict`, `StateEntry`, `StateHistory`.
+- `typedmem history <key>` shows value, status and source; `-v` adds validity windows.
+- The README's first-screen examples are a contract: `tests/test_readme_contract.py` runs them and compares the real output.
 - **Per-type REPLACE guards: `TypePolicy.resolve_by`** (also `TypeSpec.resolve_by`, YAML/JSON `resolve_by: [...]`). Names the keys on which an incoming memory must be *no weaker* than the existing one to replace it. **Guard semantics, not priority order** — every listed key is checked, any weaker key yields `IGNORE`, order is irrelevant. Supported keys: `effective_from`, `confidence` (`RESOLVE_KEYS`). Default `("effective_from", "confidence")` (`DEFAULT_RESOLVE_BY`) reproduces the previous rule exactly; profiles that don't set it are unchanged. `["effective_from"]` = newest wins; `[]` = always replace. Unknown or duplicate keys raise `ValueError` at `TypePolicy` construction / profile load. The source-authority veto is deliberately *not* a `resolve_by` key: it remains a fixed guard that runs first under every configuration.
 - **Replayable event log.** Every state-changing `MemoryEvent` now carries full `before` / `after` snapshots in `payload` — `{"snapshot_version": 1, "version": <int>, "before": <Memory.to_dict() | None>, "after": <Memory.to_dict() | None>}`. Snapshots are plain JSON values taken at the instant of the change (store-internal `_embedding` / `_embedder_id` cache keys are stripped), identical across the in-memory, JSONL, and SQLite backends. `add`/`create`: `before=None`; `delete`: `after=None`; replace / reinforce / supersede / flag / evolver updates: both.
 - `typedmem.replay(events, *, strict=True) -> dict[str, Memory]` and `MemoryStore.replay()`: fold an ordered event stream into memory state by applying `after` snapshots. **Replay never consults a `PolicyEngine`** — it restores recorded outcomes, so the same log replays identically under any current policy. Legacy events without snapshots raise `ReplayError` in strict mode and are skipped otherwise. Also exported: `SNAPSHOT_VERSION`, `snapshot()`, `MemoryEvent.has_snapshot` / `.before` / `.after`.
@@ -14,6 +24,7 @@ All notable changes to TypedMemory.
 - Server `MemoryIn`/`MemoryOut`, CLI `add --valid-from/--valid-to`, and the TypeScript client types carry the new fields.
 
 ### Changed
+- **Canonical home moved to `lyr-ai/typedmem`.** README, docs site (`lyr-ai.github.io/typedmem`), PyPI project URLs, TypeScript client metadata and the server description point there. The Docker image is published as `ghcr.io/lyr-ai/typedmem` from this release on. `tests/test_canonical_home.py` fails if a reference to the old home reappears (CHANGELOG history excepted).
 - `REINFORCE` now emits a `reinforced` event even when the incoming memory brings no new unique source. The record still mutates in that case (confidence, tags, version), and an unlogged mutation would leave the log un-replayable. Reason reads `+0 source(s): corroboration from already-known sources`.
 - SQLite event queries order by `timestamp, rowid` so events emitted in the same microsecond (e.g. the `superseded` / `supersedes` pair) keep insertion order.
 - `resolve_temporal()` now keeps only memories valid at `as_of` (default: **now**) — expired *and* future-valid memories are excluded — and does so **before** `latest_per_slot`, so a future `valid_from` cannot shadow the current state. `latest_per_slot` orders by `effective_from` and accepts `as_of`.

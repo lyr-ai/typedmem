@@ -116,7 +116,7 @@ stored memories. The hashing embedder is deterministic given `--dim`, so
 all clients/instances against the same store see consistent scores.
 
 Sentence-transformer support is v0.7.x; track [issue
-TBD](https://github.com/canis-minor/typedmem/issues).
+TBD](https://github.com/lyr-ai/typedmem/issues).
 
 ## Deploy: Cloud Run + GCS FUSE
 
@@ -142,7 +142,7 @@ gcloud projects add-iam-policy-binding my-project \
 ```bash
 gcloud run deploy typedmem \
   --project my-project --region us-central1 \
-  --image ghcr.io/canis-minor/typedmem:0.7.0 \
+  --image ghcr.io/lyr-ai/typedmem:0.9.0 \
   --service-account "$SA" \
   --max-instances 1 \
   --add-volume name=data,type=cloud-storage,bucket=my-typedmem-data \
@@ -194,7 +194,7 @@ docker run -d --name typedmem \
   -p 8080:8080 \
   -v /var/lib/typedmem:/data \
   -e TYPEDMEM_API_TOKEN=$(openssl rand -hex 32) \
-  ghcr.io/canis-minor/typedmem:0.7.0 \
+  ghcr.io/lyr-ai/typedmem:0.9.0 \
   --profile personal serve
 ```
 

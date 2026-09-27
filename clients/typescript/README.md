@@ -1,6 +1,6 @@
 # typedmem-client
 
-TypeScript client for [TypedMemory](https://github.com/canis-minor/typedmem) — **contract-driven memory for AI agents.**
+TypeScript client for [TypedMemory](https://github.com/lyr-ai/typedmem) — **contract-driven memory for AI agents.**
 
 Typed schemas, explicit conflict policies, structured provenance, typed event timeline — all over a REST API. Use this when your app isn't Python; the client talks to a `typedmem serve` HTTP server, same surface as the Python library.
 

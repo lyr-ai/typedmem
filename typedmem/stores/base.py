@@ -8,7 +8,8 @@ emits a typed ``MemoryEvent``; subclasses implement two extra primitives
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from datetime import datetime
+from dataclasses import replace
+from datetime import datetime, timezone
 from typing import Iterable, Iterator
 
 from ..events import EVENT_SOURCES, SNAPSHOT_VERSION, EventSource, MemoryEvent
@@ -24,6 +25,19 @@ from ..kernel import (
 )
 from ..policy import ConflictAction, ConflictPolicy, PolicyEngine
 from ..schema import Memory, MemoryType
+from ..source import Source
+from ..state import (
+    STATE_TYPE,
+    Resolution,
+    SetResult,
+    StateConflict,
+    StateEntry,
+    entries,
+    normalize_key,
+    normalize_value,
+    resolve,
+    utc,
+)
 
 if False:  # TYPE_CHECKING only; avoid hard import cycle
     from ..profiles.base import DomainProfile
@@ -152,6 +166,11 @@ class MemoryStore(ABC):
             raise ValueError(
                 f"event_source must be one of {sorted(EVENT_SOURCES)}, "
                 f"got {event_source!r}"
+            )
+        if m.type == STATE_TYPE:
+            raise ValueError(
+                "'state' memories are written with set_state() (AgentMemory.set, "
+                "`typedmem set`), which keeps their current value and history correct"
             )
         if self.profile is not None:
             errors = self.profile.validate(m)
@@ -286,6 +305,155 @@ class MemoryStore(ABC):
         out = [e for e in self._iter_events() if e.timestamp > timestamp]
         out.sort(key=lambda e: e.timestamp)
         return out
+
+    # ── States (design 0002) ─────────────────────────────────────────────
+    # A state is a named value that changes over time. Which value is current
+    # is decided by ``typedmem.state.resolve`` (validity time, then authority);
+    # these methods store values and keep the index links in step with it.
+    def _state_records(self, key: str, workspace: str) -> list[Memory]:
+        return [m for m in self._iter()
+                if m.type == STATE_TYPE and m.subject == key and m.workspace == workspace]
+
+    def set_state(
+        self,
+        key: str,
+        value: str,
+        *,
+        source: "Source | str | None" = None,
+        authority: float | None = None,
+        valid_from: datetime | None = None,
+        valid_to: datetime | None = None,
+        workspace: str | None = None,
+        event_source: EventSource = "store",
+        event_source_name: str | None = None,
+    ) -> SetResult:
+        """Record that ``key`` holds ``value`` (from ``valid_from``, default now).
+
+        Nothing is overwritten. A later value supersedes the current one; an
+        earlier one goes into history; the same value adds its source to the
+        existing record. A value that can't be ordered against the current one
+        (same start, or later but from a weaker source) opens a conflict. See
+        design/0002-changing-facts.md."""
+        if event_source not in EVENT_SOURCES:
+            raise ValueError(
+                f"event_source must be one of {sorted(EVENT_SOURCES)}, got {event_source!r}"
+            )
+        key, value = normalize_key(key), normalize_value(value)
+        ws = workspace if workspace is not None else self.default_workspace
+        src = Source.from_any(source)
+        if authority is not None:
+            src = (replace(src, authority=authority) if src
+                   else Source(document_id="unspecified", authority=authority))
+        incoming = Memory(
+            type=STATE_TYPE, content=value, subject=key, workspace=ws,
+            sources=[src] if src else [],
+            valid_from=utc(valid_from), valid_to=utc(valid_to),
+        )
+        now = datetime.now(timezone.utc)          # after incoming.timestamp
+        records = self._state_records(key, ws)
+        before = resolve(records, now)
+        previous = before.current.content if before.current else None
+        was_conflict = tuple(before.values) if not before.settled and before.live else ()
+
+        # The same value as the one in effect when this one starts: corroboration.
+        at_start = resolve(records, incoming.effective_from)
+        same = at_start.current if at_start.values == [value] else None
+        if same is not None and incoming.valid_to in (None, same.valid_to):
+            seen = {s.key() for s in same.sources}
+            new = [s for s in incoming.sources if s.key() not in seen]
+            if new:
+                self.transitions.apply(Transition(
+                    action="reinforced", memory_id=same.id,
+                    changes={"sources": [*same.sources, *new]},
+                    actor=event_source, actor_name=event_source_name,
+                    reason=f"+{len(new)} source(s): "
+                           + ", ".join(s.document_id for s in new),
+                ))
+            return self._set_result(key, value, "unchanged", same.id, ws, now,
+                                    previous, was_conflict)
+
+        self.transitions.apply(Transition(
+            action="create", memory=incoming,
+            actor=event_source, actor_name=event_source_name,
+            reason=f"set {key} = {value!r}",
+        ))
+        after = resolve(self._state_records(key, ws), now)
+        self._relink_state(after, actor=event_source, actor_name=event_source_name)
+        status = next(e.status for e in entries(key, after) if e.memory_id == incoming.id)
+        outcome = {"scheduled": "scheduled", "conflict": "conflict", "previous": "past",
+                   "current": "changed" if records else "new"}[status]
+        return self._set_result(key, value, outcome, incoming.id, ws, now,
+                                previous, was_conflict)
+
+    def _set_result(self, key, value, outcome, memory_id, ws, now,
+                    previous, was_conflict) -> SetResult:
+        res = resolve(self._state_records(key, ws), now)
+        es = entries(key, res)
+        entry = next(e for e in es if e.memory_id == memory_id)
+        return SetResult(
+            key=key, value=value, outcome=outcome, entry=entry, previous=previous,
+            current=res.current.content if res.current else None,
+            conflicts=tuple(e for e in es if e.status == "conflict"),
+            resolved_conflict=was_conflict if res.settled else (),
+        )
+
+    def _relink_state(self, res: Resolution, *, actor, actor_name) -> None:
+        """Bring ``superseded_by`` / ``conflicts_with`` in line with ``res``,
+        one logged update per record whose links changed."""
+        by_id = {m.id: m for m in res.records}
+        for m in res.records:
+            succ = res.successor.get(m.id)
+            conf = sorted(res.conflicts.get(m.id, []))
+            had = sorted(m.metadata.get("conflicts_with", []))
+            if m.superseded_by == succ and had == conf:
+                continue
+            changes: dict = {}
+            if m.superseded_by != succ:
+                changes["superseded_by"] = succ
+            if had != conf:
+                md = {k: v for k, v in m.metadata.items() if k != "conflicts_with"}
+                if conf:
+                    md["conflicts_with"] = conf
+                changes["metadata"] = md
+            if succ and "superseded_by" in changes:
+                action = "superseded"
+                reason = f"superseded by {by_id[succ].content!r}"
+            elif conf and "metadata" in changes:
+                action = "flagged"
+                reason = "in conflict with " + ", ".join(
+                    sorted({repr(by_id[i].content) for i in conf}))
+            else:
+                action = "relinked"
+                reason = "state links updated"
+            self.transitions.apply(Transition(
+                action=action, memory_id=m.id, changes=changes,
+                actor=actor, actor_name=actor_name, reason=reason,
+            ))
+
+    def get_state(self, key: str, *, workspace: str | None = None,
+                  as_of: datetime | None = None) -> str | None:
+        """The value of ``key`` in effect at ``as_of`` (default now), or ``None``
+        if it has none. Raises ``StateConflict`` when values contend: a current
+        value is never invented."""
+        key = normalize_key(key)
+        ws = workspace if workspace is not None else self.default_workspace
+        res = resolve(self._state_records(key, ws),
+                      utc(as_of) or datetime.now(timezone.utc))
+        if not res.live:
+            return None
+        if not res.settled:
+            raise StateConflict(
+                key, [e for e in entries(key, res) if e.status == "conflict"])
+        return res.current.content
+
+    def state_history(self, key: str, *, workspace: str | None = None,
+                      as_of: datetime | None = None) -> list[StateEntry]:
+        """Every value ``key`` has held, newest first, with status and provenance."""
+        key = normalize_key(key)
+        ws = workspace if workspace is not None else self.default_workspace
+        res = resolve(self._state_records(key, ws),
+                      utc(as_of) or datetime.now(timezone.utc))
+        return entries(key, res)
 
     # ── Legacy compat ────────────────────────────────────────────────────
     def evolution_history(self, memory_id: str) -> list[dict]:
