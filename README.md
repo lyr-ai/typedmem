@@ -1,41 +1,107 @@
 # TypedMem
 
-**Agent memory stores facts. Facts change. Which one is true now?**
+**Memory for AI agents when facts change.**
 
-TypedMem keeps the current truth without erasing what used to be true, or
-where it came from.
+Your agent knows the account is **Enterprise**. Then an old support ticket
+arrives saying it was **Pro** in April.
+
+**Which value is current, and should the newest record win?**
+
+```text
+account.plan
+
+ JAN                 APR                        SEP              NOW
+  FREE ━━━━━━━━━━━━━━○
+                     PRO ━━━━━━━━━━━━━━━━━━━━━━○
+                                                ENTERPRISE ━━━━━━●  CURRENT
+
+  The Pro ticket arrived last, but it was true in April.
+  It goes into history. Enterprise stays current.
+```
+
+**The old value isn't false. It is no longer current.**
+
+TypedMem is not another vector store. It gives stateful AI an explicit way to
+represent what is current, what used to be true, and what is still unresolved.
+
+## Try it (30 seconds)
 
 <!-- contract: tests/test_readme_contract.py runs this block and compares the output -->
 ```console
-$ pip install "typedmem>=0.9"            # Python 3.10+, no dependencies
+$ pip install typedmem                  # Python 3.10+, no dependencies
 
-$ typedmem set alice.employer OpenAI
-alice.employer = OpenAI  (new)
-$ typedmem set alice.employer Anthropic
-alice.employer = Anthropic  (was OpenAI)
-$ typedmem get alice.employer
-Anthropic
-$ typedmem history alice.employer
-Anthropic   current    source: cli
-OpenAI      previous   source: cli
+$ typedmem set account.plan Free --valid-from 2026-01-05 --source signup
+account.plan = Free  (new)
+$ typedmem set account.plan Enterprise --valid-from 2026-09-01 --source billing
+account.plan = Enterprise  (was Free)
+$ typedmem set account.plan Pro --valid-from 2026-04-01 --source "support ticket"
+account.plan: recorded Pro from 2026-04-01 as a past value; current is Enterprise
+$ typedmem get account.plan
+Enterprise
+$ typedmem history account.plan
+Enterprise   current    source: billing
+Pro          previous   source: support ticket
+Free         previous   source: signup
 ```
 
-**What breaks without it:** most agent memory stores both sentences and
-retrieves both. Your agent sees "OpenAI" and "Anthropic" with equal weight and
-guesses. TypedMem knows which one is current. When two sources genuinely
-disagree, it doesn't guess either: it keeps both and reports the conflict.
+`--valid-from` is how TypedMem knows the ticket is old: it orders values by
+when they were true, not by when they arrived. A value with no date counts as
+true from now. `typedmem history -v` shows each value's dates.
 
 The same thing in Python:
 
 <!-- contract -->
 ```python
+from datetime import datetime
 from typedmem import AgentMemory
 
 mem = AgentMemory(path="agent.db")
-mem.set("alice.employer", "OpenAI")
-mem.set("alice.employer", "Anthropic", source="email from Alice")
-mem.get("alice.employer")        # 'Anthropic'
+mem.set("account.plan", "Free", valid_from=datetime(2026, 1, 5), source="signup")
+mem.set("account.plan", "Enterprise", valid_from=datetime(2026, 9, 1), source="billing")
+mem.set("account.plan", "Pro", valid_from=datetime(2026, 4, 1), source="support ticket")
+mem.get("account.plan")        # 'Enterprise'
 ```
+
+## Three questions it answers
+
+**Facts change. What is true now?** `get` returns the value that became true
+most recently. Every earlier value stays in `history`, with its source.
+
+**Facts arrive late. Does old information overwrite the present?** No. A
+record that describes the past goes into the past, however late it arrives.
+
+**Sources disagree. Is there a current truth at all?** Not always, and
+TypedMem won't invent one:
+
+<!-- contract -->
+```console
+$ typedmem set account.plan Enterprise --valid-from 2026-09-01 --source billing
+account.plan = Enterprise  (new)
+$ typedmem set account.plan Pro --valid-from 2026-09-01 --source crm
+account.plan: CONFLICT: Pro disagrees with Enterprise; no current value
+  see: typedmem history account.plan
+$ typedmem get account.plan
+account.plan: CONFLICT, no current value
+Pro          conflict   source: crm       vs Enterprise
+Enterprise   conflict   source: billing   vs Pro
+```
+
+`get` exits with code 3 (`StateConflict` in Python) until a later value from a
+source at least as trusted settles it. A weaker source, such as an agent's own
+guess against something the user stated, can't silently override a stronger
+one either (`--authority`). It opens a conflict instead.
+
+## What it's for
+
+Any state with one value at a time and a history worth keeping:
+
+- `account.plan`: Pro → Enterprise
+- `customer.shipping_country`: US → Canada
+- `project.release_channel`: beta → stable
+
+You name the key. TypedMem keeps its current value, its past values, and
+where each came from. The rules are in
+[`design/0002-changing-facts.md`](design/0002-changing-facts.md).
 
 [![CI](https://github.com/lyr-ai/typedmem/actions/workflows/ci.yml/badge.svg)](https://github.com/lyr-ai/typedmem/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/typedmem.svg)](https://pypi.org/project/typedmem/)
@@ -43,46 +109,6 @@ mem.get("alice.employer")        # 'Anthropic'
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 📦 [PyPI](https://pypi.org/project/typedmem/) · 📚 [Docs](https://lyr-ai.github.io/typedmem/) · 🏷️ [Releases](https://github.com/lyr-ai/typedmem/releases) · 📝 [Changelog](CHANGELOG.md)
-
-## How it decides
-
-A **state** is a key you name (`alice.employer`, `order.1234.status`,
-`repo.default_branch`) that holds one value at a time. Nothing is ever
-overwritten. Every value keeps its validity window and its source.
-
-<!-- contract -->
-```console
-$ typedmem set alice.employer OpenAI --valid-from 2021-03-01
-alice.employer = OpenAI  (new)
-$ typedmem set alice.employer Anthropic --valid-from 2024-01-15
-alice.employer = Anthropic  (was OpenAI)
-$ typedmem set alice.employer Google --valid-from 2022-06-01
-alice.employer: recorded Google from 2022-06-01 as a past value; current is Anthropic
-$ typedmem history alice.employer -v
-Anthropic   current    since 2024-01-15          source: cli
-Google      previous   2022-06-01 → 2024-01-15   source: cli
-OpenAI      previous   2021-03-01 → 2022-06-01   source: cli
-$ typedmem set alice.employer Meta --source "agent guess" --authority 0.5
-alice.employer: CONFLICT: Meta disagrees with Anthropic; no current value
-  see: typedmem history alice.employer
-$ typedmem get alice.employer
-alice.employer: CONFLICT, no current value
-Meta        conflict   source: agent guess (authority 0.5)   vs Anthropic
-Anthropic   conflict   source: cli                           vs Meta
-```
-
-- **Change is resolved.** The value that became true latest is current:
-  *when* it became true (`--valid-from`), not when TypedMem heard about it.
-  Google arrived last but belongs in 2022, so it goes into history.
-- **Disagreement is exposed.** A value that can't be ordered against the
-  current one is a conflict: it starts at the same moment, or it's later but
-  comes from a weaker source. A weaker source never silently overrides a
-  stronger one. `get` then refuses to pick (exit code 3; `StateConflict` in
-  Python) until a later value from a source at least as strong settles it.
-- **Repeating a value corroborates it.** The source is added to the existing
-  value; nothing new appears in history.
-
-Design note: [`design/0002-changing-facts.md`](design/0002-changing-facts.md).
 
 ## Beyond states: contract-driven memory
 
@@ -487,7 +513,7 @@ Default store: `~/.typedmem/memories.db` (override with `--store path.db` or `--
 
 ## Status & roadmap
 
-Latest release: **v0.9.0**, states: `set` / `get` / `history` for values that change over time, with conflicts exposed rather than guessed. Before that, **v0.8.0**: governed state transitions (one `TransitionEngine` for every write). See the [CHANGELOG](CHANGELOG.md) for v0.4–v0.7 (profiles, `AgentMemory`, event timeline, HTTP server).
+Latest release: **v0.9.1**. States (`set` / `get` / `history`) arrived in 0.9.0; 0.9.1 fixes which values count as a conflict. Before that, **v0.8.0**: governed state transitions (one `TransitionEngine` for every write). See the [CHANGELOG](CHANGELOG.md) for v0.4–v0.7 (profiles, `AgentMemory`, event timeline, HTTP server).
 
 Under consideration next, only if real usage demands it:
 
