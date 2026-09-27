@@ -2,7 +2,12 @@
 
 All notable changes to TypedMemory.
 
-## [0.9.1] — unreleased
+## [Unreleased]
+
+### Changed
+- README rewritten around the failure it prevents (a late-arriving record must not overwrite the current state). The canonical example is now `account.plan`.
+
+## [0.9.1] — 2026-09-26
 
 ### Fixed
 - **A conflict set now contains only values that are still plausible at the same time** (design 0002, section 4).
