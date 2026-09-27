@@ -17,6 +17,38 @@ pip install 'typedmem[all]'
 
 Requires Python 3.10+.
 
+## Your first state
+
+A **state** is a named value that changes over time. TypedMem keeps its
+current value, its history, and where each value came from:
+
+<!-- contract -->
+```python
+from datetime import datetime
+from typedmem import AgentMemory
+
+mem = AgentMemory(path="agent.db")
+mem.set("account.plan", "Free", valid_from=datetime(2026, 1, 5), source="signup")
+mem.set("account.plan", "Enterprise", valid_from=datetime(2026, 9, 1), source="billing")
+mem.set("account.plan", "Pro", valid_from=datetime(2026, 4, 1), source="support ticket").outcome   # 'past'
+mem.get("account.plan")                                                                           # 'Enterprise'
+[e.value for e in mem.history("account.plan")]                                                    # ['Enterprise', 'Pro', 'Free']
+```
+
+The late "Pro" record goes into history, because it was true in April, and
+"Enterprise" stays current. The same from the shell:
+
+<!-- contract -->
+```console
+$ typedmem set account.plan Enterprise --valid-from 2026-09-01 --source billing
+account.plan = Enterprise  (new)
+$ typedmem get account.plan
+Enterprise
+```
+
+Late records, conflicts and the rules: see [States](states.md). The rest of
+this page is the typed-memory core underneath (see Advanced on the home page).
+
 ## Your first memory
 
 ```python

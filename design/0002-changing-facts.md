@@ -198,13 +198,11 @@ records. A future view may draw them as one value with two sources.
 
 ## Known issues
 
-- **`list` can disagree with `get`/`history` after a scheduled value takes
-  effect.** `list` / `all()` read the `superseded_by` index, which is written
-  as of the last `set` on that key. `get` and `history` resolve as of now.
-  Values that aren't future-dated are unaffected. There's a strict-xfail test
-  (`test_list_agrees_with_get_after_a_scheduled_value_takes_effect`). The fix
-  is for `list` to resolve states with the same as-of semantics. The GitHub
-  issue gets opened together with the 0.9 PR.
+- ~~`list` can disagree with `get`/`history` after a scheduled value takes
+  effect.~~ **Fixed in 0.9.3 (#7).** `all()`, `by_type()`, the retriever and
+  `len(AgentMemory)` now resolve states as of now, with the same `resolve`
+  that `get` and `history` use. The `superseded_by` index is no longer read
+  for states on any read path.
 
 ## Out of scope for this change
 

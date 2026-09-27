@@ -235,16 +235,33 @@ class MemoryStore(ABC):
         return self.transitions.apply(t)
 
     def all(self, *, workspace: str | None = None, include_superseded: bool = False) -> list[Memory]:
+        """Memories in ``workspace``. Unless ``include_superseded``, only those in
+        effect **now**: ordinary memories that aren't superseded, and for each
+        state the values ``get``/``history`` treat as in effect now (the current
+        value, or every value in a conflict). See ``_in_effect_now``."""
         ws = workspace if workspace is not None else self.default_workspace
-        return [m for m in self._iter()
-                if m.workspace == ws and (include_superseded or m.superseded_by is None)]
+        if include_superseded:
+            return [m for m in self._iter() if m.workspace == ws]
+        return self._in_effect_now([m for m in self._iter() if m.workspace == ws], ws)
 
     def by_type(self, t: MemoryType, *, workspace: str | None = None,
                 include_superseded: bool = False) -> list[Memory]:
         ws = workspace if workspace is not None else self.default_workspace
-        return [m for m in self._iter()
-                if m.type == t and m.workspace == ws
-                and (include_superseded or m.superseded_by is None)]
+        t = t.value if isinstance(t, MemoryType) else t
+        return [m for m in self.all(workspace=ws, include_superseded=include_superseded) if m.type == t]
+
+    def _in_effect_now(self, memories: list[Memory], ws: str) -> list[Memory]:
+        """Filter to what is in effect now. States are resolved as of now with the
+        same ``resolve`` as get/history, not read from the ``superseded_by``
+        index, which is written at ``set`` time and goes stale once a
+        scheduled value takes effect (#7)."""
+        out = [m for m in memories if m.type != STATE_TYPE and m.superseded_by is None]
+        keys = sorted({m.subject for m in memories if m.type == STATE_TYPE})
+        if keys:
+            now = datetime.now(timezone.utc)
+            for key in keys:
+                out += resolve(self._state_records(key, ws), now).live
+        return out
 
     def workspaces(self) -> list[str]:
         return sorted({m.workspace for m in self._iter()})

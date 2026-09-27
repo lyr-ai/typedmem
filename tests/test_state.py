@@ -248,18 +248,37 @@ def test_state_survives_reopen(tmp_path, name):
     s.close()
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "known issue (design 0002): list/all() read the superseded_by index, which is "
-    "written as of the last set; get/history resolve as of now"))
-def test_list_agrees_with_get_after_a_scheduled_value_takes_effect():
+def test_every_read_path_agrees_with_get_after_a_scheduled_value_takes_effect(store, tmp_path):   # #7
     import time
-    store = InMemoryStore()
+    from typedmem.retriever import Retriever
     store.set_state("alice.employer", "OpenAI", valid_from=d("2021-01-01"))
     store.set_state("alice.employer", "Anthropic",
-                    valid_from=datetime.now(timezone.utc) + timedelta(milliseconds=30))
-    time.sleep(0.06)
+                    valid_from=datetime.now(timezone.utc) + timedelta(milliseconds=40))
+    store.add(Memory(type="fact", content="the sky is blue", tags=["t"]))
+    assert store.get_state("alice.employer") == "OpenAI"
+    assert sorted(m.content for m in store.all()) == ["OpenAI", "the sky is blue"]
+    time.sleep(0.08)
     assert store.get_state("alice.employer") == "Anthropic"
-    assert [m.content for m in store.all()] == ["Anthropic"]
+    assert sorted(m.content for m in store.all()) == ["Anthropic", "the sky is blue"]
+    assert [m.content for m in store.by_type("state")] == ["Anthropic"]
+    assert sorted(m.content for m in store.all(include_superseded=True)) == ["Anthropic", "OpenAI", "the sky is blue"]
+    r = Retriever(store)
+    assert [m.content for m in r.by_type("state")] == ["Anthropic"]
+    assert "OpenAI" not in [s.memory.content for s in r.relevant("employer OpenAI Anthropic", limit=10)]
+
+
+def test_conflicting_values_are_all_in_effect():
+    store = InMemoryStore()
+    store.set_state("k", "A", valid_from=d("2024-01-01"))
+    store.set_state("k", "B", valid_from=d("2024-01-01"))
+    assert sorted(m.content for m in store.all()) == ["A", "B"]          # list shows the conflict, like get
+
+
+def test_agent_memory_len_counts_what_is_in_effect():
+    mem = AgentMemory()
+    mem.set("k", "A", valid_from=d("2021-01-01"))
+    mem.set("k", "B", valid_from=d("2022-01-01"))
+    assert len(mem) == 1
 
 
 def test_set_reports_confirming_a_historical_value(tmp_path, capsys):   # issue #9

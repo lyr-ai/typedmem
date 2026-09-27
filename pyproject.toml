@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "typedmem"
-version = "0.9.2"
+version = "0.9.3"
 description = "Memory for AI agents when facts change — current state, history, and provenance."
 readme = "README.md"
 requires-python = ">=3.10"
