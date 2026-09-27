@@ -99,8 +99,26 @@ four are replayable.
   against an explicit user statement). TypedMem does not pick a winner.
   `get` reports the conflict and `contradictions` lists it.
 
-A conflict is resolved by a later `set` with authority at least as high as
-the conflicting values. That is ordinary supersession, so no separate
+**Invariant: a conflict set contains only values that remain simultaneously
+plausible at the queried time.** Values that start at the same moment end
+every earlier value whose authority is no higher than theirs, *even when they
+disagree with each other about what came next*.
+
+- Free (January), then billing says Enterprise and the CRM says Pro, both
+  from 1 September: the conflict is Enterprise vs Pro. Free is history,
+  because both newer claims agree it ended.
+- An earlier value from a *stronger* source is not ended by weaker claims.
+  It stays in the conflict.
+
+*Correction, 0.9.1:* 0.9.0 kept every earlier value in the conflict (Free
+above). That violated this section's own definition, since Free and
+Enterprise can be put in time order. It was found while checking design
+0003's scenarios against the released package.
+
+Stronger authority alone does not resolve a same-time conflict. Values that
+start at the same moment conflict whatever their authority. Resolving a
+conflict needs later evidence: a conflict is resolved by a later `set` with
+authority at least as high as the conflicting values. That is ordinary supersession, so no separate
 "resolve" verb is needed.
 
 This keeps the authority guard we already have (a weaker source cannot

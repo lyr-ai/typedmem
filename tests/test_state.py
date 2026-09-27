@@ -122,10 +122,49 @@ def test_stronger_later_value_resolves_conflict(store):
     r = store.set_state("alice.employer", "OpenAI", source="email from Alice",
                         valid_from=d("2026-01-01"))
     assert r.outcome == "changed"
-    assert set(r.resolved_conflict) == {"Anthropic", "Meta", "OpenAI"}
+    # Meta (later, as strong as OpenAI) ended OpenAI; only Anthropic and Meta
+    # were still simultaneously plausible (0.9.0 wrongly kept OpenAI too).
+    assert set(r.resolved_conflict) == {"Anthropic", "Meta"}
     assert store.get_state("alice.employer") == "OpenAI"
     assert store.contradictions() == []
     assert [s for s, _ in values(store)] == ["current"] + ["previous"] * 3
+
+
+# 4b. simultaneous disagreement ends the value before it (fixed in 0.9.1)
+def test_simultaneous_new_values_end_the_earlier_value(store):
+    store.set_state("account.plan", "Free", source="signup", valid_from=d("2026-01-05"))
+    store.set_state("account.plan", "Enterprise", source="billing", valid_from=d("2026-09-01"))
+    r = store.set_state("account.plan", "Pro", source="crm", valid_from=d("2026-09-01"))
+    assert r.outcome == "conflict"
+    with pytest.raises(StateConflict) as exc:
+        store.get_state("account.plan")
+    assert sorted(e.value for e in exc.value.entries) == ["Enterprise", "Pro"]
+    hist = {e.value: e for e in store.state_history("account.plan")}
+    assert hist["Free"].status == "previous"
+    assert hist["Free"].valid_to == d("2026-09-01")
+    assert set(hist["Enterprise"].conflicts_with) == {"Pro"}
+    assert store.get_state("account.plan", as_of=d("2026-06-01")) == "Free"
+    [cluster] = store.contradictions()
+    assert sorted(m.content for m in cluster) == ["Enterprise", "Pro"]
+
+
+# 4c. ... but weaker simultaneous claims can't silently end a stronger value
+def test_weaker_simultaneous_claims_do_not_end_a_stronger_value(store):
+    store.set_state("account.plan", "Free", source="billing", valid_from=d("2026-01-05"))
+    store.set_state("account.plan", "Enterprise", source="agent", authority=0.4,
+                    valid_from=d("2026-09-01"))
+    store.set_state("account.plan", "Pro", source="crm", authority=0.4,
+                    valid_from=d("2026-09-01"))
+    with pytest.raises(StateConflict) as exc:
+        store.get_state("account.plan")
+    assert sorted(e.value for e in exc.value.entries) == ["Enterprise", "Free", "Pro"]
+    # a mixed epoch ends only what it is at least as strong as
+    store.set_state("team.lead", "Ana", source="hr", valid_from=d("2026-01-01"))
+    store.set_state("team.lead", "Bo", source="wiki", authority=0.5, valid_from=d("2026-03-01"))
+    store.set_state("team.lead", "Cy", source="slack", authority=0.7, valid_from=d("2026-06-01"))
+    with pytest.raises(StateConflict) as exc:
+        store.get_state("team.lead")
+    assert sorted(e.value for e in exc.value.entries) == ["Ana", "Cy"]   # Cy ended Bo, not Ana
 
 
 # 7. the event log replays to exactly the stored state
