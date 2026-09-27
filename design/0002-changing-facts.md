@@ -1,6 +1,6 @@
 # 0002: What is a changing fact in TypedMem?
 
-Status: **draft, for review**. No code yet. 2026-09-26.
+Status: **approved 2026-09-26** (open questions 1–3 decided: see the end).
 
 ## The failure this fixes
 
@@ -121,6 +121,22 @@ shows:
 The first screen's "why" comes from this list: the current value is current
 because it is later, and the history shows where each value came from.
 
+### 5b. Reading: `get` never invents a current value
+
+> change → resolve; disagreement → expose.
+
+`get(key)` returns the current value only when one can be established.
+
+- **Settled:** it returns the value.
+- **Nothing set, or the last value has expired:** it returns `None`. The CLI
+  prints "not set" and exits 1.
+- **In conflict:** it raises `StateConflict`, which carries every value still
+  in contention with its provenance. It never returns the stronger value, the
+  newer one, or whichever comes first. The CLI lists the values and exits 3.
+
+The headline promise, "TypedMem keeps the current truth", means *when a
+current truth can be established*. When it can't, TypedMem says so.
+
 ### 6. Minimal input
 
 ```bash
@@ -172,10 +188,11 @@ Required test cases:
 1. The first-screen transcript (rules 1 and 3).
 2. Setting the same value again gives **unchanged** and no new history entry
    (rule 2).
-3. A backfilled past value lands in history, and current does not change
-   (rule 3b).
-4. The same start time gives a conflict, with `get` reporting both values
-   (rule 4).
+3. Validity time, not arrival order (rule 3b). Write t1 OpenAI, then t3
+   Anthropic, then t2 Google, which arrives last. Current stays Anthropic, and
+   history reads OpenAI → Google → Anthropic.
+4. The same start time gives a conflict: `get` raises `StateConflict` naming
+   both values, and `contradictions` lists them (rules 4 and 5b).
 5. A later write from a weaker source gives a conflict, not a silent ignore
    (rule 4).
 6. A stronger later `set` resolves the conflict (section 4).
@@ -183,15 +200,26 @@ Required test cases:
    exactly.
 8. Keys are case-insensitive, and the rules hold under every built-in profile.
 
-## Open questions for review
+## Decisions on the open questions (2026-09-26)
 
-1. **Rule 4, weaker-but-later.** Should it be a conflict (as proposed), or
-   should the later value win with a warning? A conflict is safer, but makes
-   an agent's own updates noisier when their authority is lower than the
-   user's.
-2. **Where `set/get/history` live.** Proposed: on `AgentMemory` and the CLI,
-   backed by new `MemoryStore` methods. Is `AgentMemory` still the front door,
-   or should the first screen show a plainer entry point?
-3. **Naming.** Is `state` right for the type, and `set` / `get` / `history`
-   for the verbs? `history` overlaps with the existing id-based command
-   (resolved above by trying the argument as an id first).
+1. **Later but weaker gives a conflict**, not "the later one wins with a
+   warning". Temporal order answers *when did the world change*. Authority
+   answers *are we entitled to believe the change*. When the two disagree,
+   the conflict is exposed. Resolution policies may come later; there will be
+   no silent winner in 0.9.
+2. **`set` / `get` / `history` live on `AgentMemory`**, backed by
+   `MemoryStore.set_state` / `get_state` / `state_history`. There is no
+   separate state-store class for users to learn.
+3. **Names:** `state`, `set`, `get`, `history`. A future UI can call the view a
+   "Truth Timeline".
+
+Scope is frozen to:
+
+- the built-in `state` type;
+- `AgentMemory.set` / `get` / `history` and the CLI verbs;
+- authority-safe conflicts;
+- effective-time ordering;
+- source accumulation;
+- the README contract test.
+
+No natural-language extraction.

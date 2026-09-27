@@ -30,7 +30,9 @@ from . import (
     RuleBasedExtractor,
     SQLiteMemoryStore,
     Source,
+    StateConflict,
 )
+from .state import format_entries
 from .profiles import BUILTIN_PROFILES, from_json as _profile_from_json, from_yaml as _profile_from_yaml
 
 
@@ -248,9 +250,64 @@ def cmd_evolve(args: argparse.Namespace, store: MemoryStore) -> int:
     return 0
 
 
+def cmd_set(args: argparse.Namespace, store: MemoryStore) -> int:
+    source = Source(document_id=args.source or "cli", uri=args.uri,
+                    authority=1.0 if args.authority is None else args.authority)
+    r = store.set_state(
+        args.key, args.value, source=source,
+        valid_from=_parse_when(args.valid_from), valid_to=_parse_when(args.valid_to),
+        workspace=args.workspace, event_source="user", event_source_name="cli:set",
+    )
+    head = f"{r.key} = {r.value}"
+    if r.outcome == "new":
+        print(f"{head}  (new)")
+    elif r.outcome == "unchanged":
+        print(f"{head}  (unchanged)")
+    elif r.outcome == "changed" and r.resolved_conflict:
+        print(f"{head}  (resolves conflict: {' vs '.join(r.resolved_conflict)})")
+    elif r.outcome == "changed":
+        print(f"{head}  (was {r.previous})" if r.previous else f"{head}  (changed)")
+    elif r.outcome == "past":
+        now = r.current or "in conflict"
+        print(f"{r.key}: recorded {r.value} from {r.entry.valid_from.date()} as a past value; "
+              f"current is {now}")
+    elif r.outcome == "scheduled":
+        print(f"{head}  (scheduled from {r.entry.valid_from.date()})")
+    else:
+        others = ", ".join(e.value for e in r.conflicts if e.memory_id != r.entry.memory_id)
+        print(f"{r.key}: CONFLICT: {r.value} disagrees with {others}; no current value")
+        print(f"  see: typedmem history {r.key}")
+    return 0
+
+
+def cmd_get(args: argparse.Namespace, store: MemoryStore) -> int:
+    """Exit 0 with the value; 1 when not set; 3 when in conflict."""
+    try:
+        value = store.get_state(args.key, workspace=args.workspace,
+                                as_of=_parse_when(args.at))
+    except StateConflict as c:
+        print(f"{c.key}: CONFLICT, no current value", file=sys.stderr)
+        print(format_entries(c.entries), file=sys.stderr)
+        return 3
+    if value is None:
+        print(f"{args.key.strip().lower()} is not set", file=sys.stderr)
+        return 1
+    print(value)
+    return 0
+
+
 def cmd_history(args: argparse.Namespace, store: MemoryStore) -> int:
-    """Per-memory timeline. v0.6+ output includes the event source so callers
-    can distinguish ``user`` writes from ``agent``/``evolver``/``system``."""
+    """A state key's value history, or (given a memory id) that memory's event
+    timeline. Event output includes the source so callers can distinguish
+    ``user`` writes from ``agent``/``evolver``/``system``."""
+    if store.get(args.id) is None:
+        es = store.state_history(args.id, workspace=args.workspace)
+        if es:
+            if args.json:
+                print(json.dumps([e.to_dict() for e in es], indent=2))
+            else:
+                print(format_entries(es))
+            return 0
     events = store.history(args.id)
     if not events:
         print("(no history)")
@@ -468,8 +525,24 @@ def build_parser() -> argparse.ArgumentParser:
                     help="hashing embedder dim (goals only)")
     se.set_defaults(func=cmd_evolve)
 
-    sh = sub.add_parser("history", help="show the event timeline for one memory")
-    sh.add_argument("id")
+    sv = sub.add_parser("set", help="set a state: a named value that changes over time")
+    sv.add_argument("key", help="the state, e.g. alice.employer")
+    sv.add_argument("value")
+    sv.add_argument("--source", help="where the value came from (default: cli)")
+    sv.add_argument("--uri", help="URL or path to the source")
+    sv.add_argument("--authority", type=float,
+                    help="trust in the source (default 1.0); a later but weaker value opens a conflict")
+    sv.add_argument("--valid-from", help="ISO-8601; when the value became true (default: now)")
+    sv.add_argument("--valid-to", help="ISO-8601; when the value stops being true (exclusive)")
+    sv.set_defaults(func=cmd_set)
+
+    sg = sub.add_parser("get", help="current value of a state (exit 1: not set, 3: conflict)")
+    sg.add_argument("key")
+    sg.add_argument("--at", help="ISO-8601; the value in effect at this time (default: now)")
+    sg.set_defaults(func=cmd_get)
+
+    sh = sub.add_parser("history", help="value history of a state, or event timeline of a memory id")
+    sh.add_argument("id", help="a state key (alice.employer) or a memory id")
     sh.add_argument("--json", action="store_true", help="emit MemoryEvent dicts as JSON")
     sh.set_defaults(func=cmd_history)
 

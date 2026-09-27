@@ -56,6 +56,7 @@ from .retrieval import RetrievalIntent, TypedRetriever, route_query
 from .retriever import RelevanceWeights, Retriever, ScoredMemory
 from .schema import GoalStatus, Memory, MemoryType
 from .source import Source
+from .state import SetResult, StateConflict, StateEntry, StateHistory
 from .stores import (
     InMemoryStore,
     JSONLMemoryStore,
@@ -115,8 +116,12 @@ __all__ = [
     "RuleBasedExtractor",
     "ScoredMemory",
     "SQLiteMemoryStore",
+    "SetResult",
     "SlotIdentityStrategy",
     "Source",
+    "StateConflict",
+    "StateEntry",
+    "StateHistory",
     "SummaryEvolver",
     "Transition",
     "TransitionEngine",

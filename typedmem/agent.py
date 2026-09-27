@@ -28,6 +28,7 @@ from .profiles.base import DomainProfile
 from .retriever import Retriever, ScoredMemory
 from .schema import Memory
 from .source import Source
+from .state import SetResult, StateHistory
 from .stores import InMemoryStore, MemoryStore, SQLiteMemoryStore
 
 
@@ -230,6 +231,36 @@ class AgentMemory:
         return self.store.delete(
             memory_id, event_source="agent", event_source_name="AgentMemory.forget",
         )
+
+    # ── states (design 0002) ─────────────────────────────────────────────
+    def set(
+        self,
+        key: str,
+        value: str,
+        *,
+        source: Source | str | None = None,
+        authority: float | None = None,
+        valid_from: datetime | None = None,
+        valid_to: datetime | None = None,
+    ) -> SetResult:
+        """Record that the state ``key`` (e.g. ``"alice.employer"``) holds
+        ``value``. A later value supersedes the current one without erasing
+        it; a weaker or simultaneous disagreeing value opens a conflict."""
+        return self.store.set_state(
+            key, value, source=source, authority=authority,
+            valid_from=valid_from, valid_to=valid_to, workspace=self.workspace,
+            event_source="agent", event_source_name="AgentMemory.set",
+        )
+
+    def get(self, key: str, *, as_of: datetime | None = None) -> str | None:
+        """The current value of ``key``, or ``None`` if it has none. Raises
+        ``StateConflict`` when values contend and none is entitled to win."""
+        return self.store.get_state(key, workspace=self.workspace, as_of=as_of)
+
+    def history(self, key: str, *, as_of: datetime | None = None) -> StateHistory:
+        """Every value ``key`` has held, newest first: status, validity and source."""
+        return StateHistory(
+            self.store.state_history(key, workspace=self.workspace, as_of=as_of))
 
     # ── housekeeping ──────────────────────────────────────────────────────
     def close(self) -> None:

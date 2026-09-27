@@ -1,12 +1,41 @@
-> This repository is part of the **[Reliable Long-Running Agents (RLRA)](https://github.com/canis-minor)** research initiative.
+# TypedMem
 
-# TypedMemory
+**Agent memory stores facts. Facts change. Which one is true now?**
 
-**Contract-driven memory for AI agents.**
-*Typed schemas. Explicit conflict policies. Structured provenance. Typed event timeline.*
+TypedMem keeps the current truth without erasing what used to be true, or
+where it came from.
 
-> **Boundary.** TypedMem is a persistent memory representation. It does not model
-> execution provenance or semantic reasoning.
+<!-- contract: tests/test_readme_contract.py runs this block and compares the output -->
+```console
+$ pip install "typedmem>=0.9"            # Python 3.10+, no dependencies
+
+$ typedmem set alice.employer OpenAI
+alice.employer = OpenAI  (new)
+$ typedmem set alice.employer Anthropic
+alice.employer = Anthropic  (was OpenAI)
+$ typedmem get alice.employer
+Anthropic
+$ typedmem history alice.employer
+current    Anthropic   since 2026-09-27          source: cli
+previous   OpenAI      2026-09-27 → 2026-09-27   source: cli
+```
+
+**What breaks without it:** most agent memory stores both sentences and
+retrieves both. Your agent sees "OpenAI" and "Anthropic" with equal weight and
+guesses. TypedMem knows which one is current. When two sources genuinely
+disagree, it doesn't guess either: it keeps both and reports the conflict.
+
+The same thing in Python:
+
+<!-- contract -->
+```python
+from typedmem import AgentMemory
+
+mem = AgentMemory(path="agent.db")
+mem.set("alice.employer", "OpenAI")
+mem.set("alice.employer", "Anthropic", source="email from Alice")
+mem.get("alice.employer")        # 'Anthropic'
+```
 
 [![CI](https://github.com/canis-minor/typedmem/actions/workflows/ci.yml/badge.svg)](https://github.com/canis-minor/typedmem/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/typedmem.svg)](https://pypi.org/project/typedmem/)
@@ -15,7 +44,56 @@
 
 📦 [PyPI](https://pypi.org/project/typedmem/) · 📚 [Docs](https://canis-minor.github.io/typedmem/) · 🏷️ [Releases](https://github.com/canis-minor/typedmem/releases) · 📝 [Changelog](CHANGELOG.md)
 
-## TL;DR
+## How it decides
+
+A **state** is a key you name (`alice.employer`, `order.1234.status`,
+`repo.default_branch`) that holds one value at a time. Nothing is ever
+overwritten. Every value keeps its validity window and its source.
+
+<!-- contract -->
+```console
+$ typedmem set alice.employer OpenAI --valid-from 2021-03-01
+alice.employer = OpenAI  (new)
+$ typedmem set alice.employer Anthropic --valid-from 2024-01-15
+alice.employer = Anthropic  (was OpenAI)
+$ typedmem set alice.employer Google --valid-from 2022-06-01
+alice.employer: recorded Google from 2022-06-01 as a past value; current is Anthropic
+$ typedmem history alice.employer
+current    Anthropic   since 2024-01-15          source: cli
+previous   Google      2022-06-01 → 2024-01-15   source: cli
+previous   OpenAI      2021-03-01 → 2022-06-01   source: cli
+$ typedmem set alice.employer Meta --source "agent guess" --authority 0.5
+alice.employer: CONFLICT: Meta disagrees with Anthropic; no current value
+  see: typedmem history alice.employer
+$ typedmem get alice.employer
+alice.employer: CONFLICT, no current value
+conflict   Meta        since 2026-09-27   source: agent guess (authority 0.5)   vs Anthropic
+conflict   Anthropic   since 2024-01-15   source: cli                           vs Meta
+```
+
+- **Change is resolved.** The value that became true latest is current:
+  *when* it became true (`--valid-from`), not when TypedMem heard about it.
+  Google arrived last but belongs in 2022, so it goes into history.
+- **Disagreement is exposed.** A value that can't be ordered against the
+  current one is a conflict: it starts at the same moment, or it's later but
+  comes from a weaker source. A weaker source never silently overrides a
+  stronger one. `get` then refuses to pick (exit code 3; `StateConflict` in
+  Python) until a later value from a source at least as strong settles it.
+- **Repeating a value corroborates it.** The source is added to the existing
+  value; nothing new appears in history.
+
+Design note: [`design/0002-changing-facts.md`](design/0002-changing-facts.md).
+
+## Beyond states: contract-driven memory
+
+States are the simplest part of TypedMem. Underneath is a typed memory store
+for agents, with profiles, conflict policies, provenance and a replayable
+event log.
+
+> **Boundary.** TypedMem is a persistent memory representation. It does not model
+> execution provenance or semantic reasoning.
+
+### TL;DR
 
 **Memory you can contract against.** Four explicit contracts make TypedMemory:
 
@@ -26,7 +104,7 @@
 
 Built for domain apps where *"the memory accepted nonsense"* is a correctness bug.
 
-## The problem
+### The problem
 
 AI agents start believing their own hallucinations. They:
 
@@ -36,7 +114,7 @@ AI agents start believing their own hallucinations. They:
 
 TypedMemory makes that visible.
 
-## The contradiction-detection moment
+### The contradiction-detection moment
 
 ```bash
 $ pip install typedmem          # Python 3.10+
@@ -57,7 +135,7 @@ cluster 1 (2 memories):
 
 Two memories cross-linked by the FLAG policy. Both still in the store — no silent overwrite. Run `typedmem history <id>` on either to see exactly when and why the state changed.
 
-## 5 lines for an agent
+### 5 lines for an agent
 
 ```python
 from typedmem import AgentMemory
