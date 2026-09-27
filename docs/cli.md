@@ -1,6 +1,6 @@
 # CLI
 
-After installing TypedMemory, the `typedmem` shell command is on your PATH.
+After installing TypedMem, the `typedmem` shell command is on your PATH.
 
 ```bash
 typedmem --help
@@ -16,6 +16,34 @@ typedmem --help
 | `--profile-file PATH` | _(none)_ | Path to a custom profile in `.json` or `.yaml` |
 
 ## Subcommands
+
+### `set`
+
+Set a **state**: a named value that changes over time. Nothing is
+overwritten. See [States](states.md).
+
+```bash
+typedmem set account.plan Enterprise --valid-from 2026-09-01 --source billing
+```
+
+Options: `--source` (where the value came from; default `cli`), `--uri`,
+`--authority` (trust in the source, default 1.0; a later but weaker value
+opens a conflict), `--valid-from` (when the value became true; default now),
+`--valid-to` (exclusive). The output says what happened: `(new)`,
+`(was X)`, a past value recorded, a source added to a historical value,
+`(unchanged)`, a conflict, or scheduled.
+
+### `get`
+
+Print the current value of a state.
+
+```bash
+typedmem get account.plan
+typedmem get account.plan --at 2026-06-15      # the value in effect then
+```
+
+Exit codes: `0` value printed · `1` not set · `3` conflict (the competing
+values and their sources are printed to stderr).
 
 ### `add`
 
@@ -106,10 +134,21 @@ typedmem evolve --evolver goals --threshold 0.9 --apply    # commit
 
 ### `history`
 
-Show the `metadata["evolution_history"]` audit trail for a memory.
+For a **state key**, list every value it has held, newest first, with status
+(`current`, `previous`, `conflict`, `scheduled`) and source. `-v` adds each
+value's validity window.
 
 ```bash
-typedmem history MEMORY_ID
+typedmem history account.plan
+typedmem history account.plan -v
+```
+
+For a **memory id**, show that memory's event timeline from the event log,
+with the source of each event (`user`, `agent`, `evolver`, `system`).
+`--json` prints the events as JSON.
+
+```bash
+typedmem history MEMORY_ID [--json]
 ```
 
 ## Conventions

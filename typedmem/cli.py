@@ -261,8 +261,16 @@ def cmd_set(args: argparse.Namespace, store: MemoryStore) -> int:
     head = f"{r.key} = {r.value}"
     if r.outcome == "new":
         print(f"{head}  (new)")
+    elif r.outcome == "unchanged" and r.entry.status != "current":
+        # a late record that confirms a value the state had in the past (#9)
+        when = f"{r.value} (from {r.entry.valid_from.date()})"
+        now = r.current or "in conflict"
+        if r.source_added:
+            print(f"{r.key}: added source to historical value {when}; current is {now}")
+        else:
+            print(f"{r.key}: {when} is already recorded as a historical value; current is {now}")
     elif r.outcome == "unchanged":
-        print(f"{head}  (unchanged)")
+        print(f"{head}  (unchanged; source added)" if r.source_added else f"{head}  (unchanged)")
     elif r.outcome == "changed" and r.resolved_conflict:
         print(f"{head}  (resolves conflict: {' vs '.join(r.resolved_conflict)})")
     elif r.outcome == "changed":

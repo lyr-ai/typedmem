@@ -1,7 +1,7 @@
 """Agent-facing memory contract.
 
 ``AgentMemory`` is the single front door for agent frameworks to plug into
-TypedMemory. It exposes four verbs — ``remember`` / ``recall`` / ``reflect``
+TypedMem. It exposes four verbs — ``remember`` / ``recall`` / ``reflect``
 / ``forget`` — over the existing extractor + store + retriever + evolver
 primitives. Same library, smaller surface, agent-shaped.
 

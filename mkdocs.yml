@@ -1,5 +1,5 @@
-site_name: TypedMemory
-site_description: Contract-driven memory for AI agents — typed schemas, explicit conflict policies, structured provenance, typed event timeline.
+site_name: TypedMem
+site_description: Memory for AI agents when facts change — current state, history, and provenance.
 site_url: https://lyr-ai.github.io/typedmem/
 repo_url: https://github.com/lyr-ai/typedmem
 repo_name: lyr-ai/typedmem
@@ -44,6 +44,7 @@ markdown_extensions:
 
 nav:
   - Home: index.md
+  - States: states.md
   - Quickstart: quickstart.md
   - Concepts: concepts.md
   - Profiles: profiles.md

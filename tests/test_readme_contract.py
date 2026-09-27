@@ -1,4 +1,4 @@
-"""The README is a contract: every code block marked ``<!-- contract -->`` runs
+"""The README (and docs/states.md) are a contract: every code block marked ``<!-- contract -->`` runs
 against a fresh store, and its real output must match the README.
 
 - ``console`` blocks: each ``$ typedmem ...`` line is run through the CLI;
@@ -22,15 +22,20 @@ import pytest
 
 from typedmem.cli import main
 
-README = Path(__file__).resolve().parents[1] / "README.md"
+ROOT = Path(__file__).resolve().parents[1]
+README = ROOT / "README.md"
+CONTRACT_FILES = [README, ROOT / "docs" / "states.md"]
 README_TODAY = "2026-09-27"
 BLOCK = re.compile(r"<!-- contract[^>]*-->\s*```(\w+)\n(.*?)```", re.S)
 
 
 def blocks():
-    found = BLOCK.findall(README.read_text())
-    assert found, "README has no contract blocks"
-    return [pytest.param(lang, body, id=f"{i}-{lang}") for i, (lang, body) in enumerate(found)]
+    out = []
+    for f in CONTRACT_FILES:
+        found = BLOCK.findall(f.read_text())
+        assert found, f"{f.name} has no contract blocks"
+        out += [pytest.param(lang, body, id=f"{f.stem}-{i}-{lang}") for i, (lang, body) in enumerate(found)]
+    return out
 
 
 def steps(body: str):

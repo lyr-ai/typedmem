@@ -81,7 +81,7 @@ def create_app(
     emb = embedder or HashingEmbeddingProvider()
 
     app = FastAPI(
-        title="TypedMemory",
+        title="TypedMem",
         version=_typedmem_version,
         description=(
             "Contract-driven memory for AI agents — over HTTP. "

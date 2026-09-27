@@ -127,6 +127,7 @@ class SetResult:
     current: str | None
     conflicts: tuple[StateEntry, ...] = ()
     resolved_conflict: tuple[str, ...] = ()   # values of the conflict this write settled
+    source_added: bool = False                # an unchanged write that added a new source
 
 
 @dataclass

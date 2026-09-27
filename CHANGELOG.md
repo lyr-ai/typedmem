@@ -1,10 +1,15 @@
 # Changelog
 
-All notable changes to TypedMemory.
+All notable changes to TypedMem (named TypedMemory before 0.9; older entries keep the name they shipped with).
 
-## [Unreleased]
+## [0.9.2] — 2026-09-27
+
+### Fixed
+- `typedmem set` no longer says `(unchanged)` when a late record confirms a value the state had **in the past**; that read as if the old value were current (#9). It now says `added source to historical value Pro (from 2026-04-01); current is Enterprise`, or that the value is already recorded. A repeat of the current value says `(unchanged; source added)` when it added a source. `SetResult.source_added` reports the same.
 
 ### Changed
+- Package description (what PyPI shows) now matches the product: "Memory for AI agents when facts change — current state, history, and provenance." Current wording uses the name TypedMem; release notes keep the name they shipped with.
+- Docs site: a States page (the account.plan story, the four outcomes, conflicts, `--valid-from`), `set` / `get` / `history <key>` in the CLI reference, and a docs home that leads with states, with the pre-0.9 typed-memory core under Advanced.
 - **Truth Through Time explorer** (design 0003) at https://lyr-ai.github.io/typedmem/explorer/: facts change, facts arrive late, sources disagree, with an as-of scrubber. Every frame is TypedMem's own answer. `tools/explorer_data.py` generates `docs/explorer/data.js` from the real API, and `tests/test_explorer_data.py` fails on drift. The README's picture is a still of it.
 - README rewritten around the failure it prevents (a late-arriving record must not overwrite the current state). The canonical example is now `account.plan`.
 
