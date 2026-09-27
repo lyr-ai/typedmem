@@ -5,8 +5,8 @@
 Each scenario is a sequence of real ``AgentMemory.set`` calls in *arrival
 order*. After every call the script records what the product then says: the
 outcome of the write, the current value (or the conflict), and the full
-history. It also records the value in effect at the start of each month, for
-the time scrubber.
+history. It also records the value in effect in the middle of each month (and at
+the as-of date), for the time scrubber.
 
 The page only draws these answers. It never decides what is current itself
 (design 0003 §13). ``tests/test_explorer_data.py`` fails if this output and
@@ -30,7 +30,8 @@ from typedmem import AgentMemory, StateConflict  # noqa: E402
 
 KEY = "account.plan"
 AS_OF = datetime(2026, 9, 27, tzinfo=timezone.utc)
-MONTHS = [datetime(2026, m, 1, tzinfo=timezone.utc) for m in range(1, 10)] + [AS_OF]
+# scrubber samples: mid-month (never exactly on a change date), then now
+MONTHS = [datetime(2026, m, 15, tzinfo=timezone.utc) for m in range(1, 10)] + [AS_OF]
 
 
 def day(s: str) -> datetime:

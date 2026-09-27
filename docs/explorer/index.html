@@ -47,6 +47,17 @@ h2 { font: 400 28px/1.2 var(--serif); margin: 0 0 6px; }
 .readout .v.unresolved { color: var(--cinnabar); font-style: italic; }
 .readout .h { font: 400 14px/1.6 var(--mono); color: var(--muted); }
 .thesis { font: 400 28px/1.25 var(--serif); margin: 22px 0 0; max-width: 30ch; min-height: 2.5em; transition: opacity .6s; }
+.scrub { display: none; align-items: center; gap: 14px; margin: 14px 0 0; }
+.scrub.on { display: flex; }
+.scrub label { font: 500 11px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.scrub input { flex: 1; accent-color: var(--ink); }
+.scrub output { font: 500 12px var(--mono); color: var(--ink); min-width: 5.5em; text-align: right; }
+/* ?card=1: a still for README / blog / social, rendered from the real page */
+body.card main { padding: 30px 34px 26px; }
+body.card .tabs, body.card .controls, body.card .caption, body.card .lede, body.card .scrub, body.card #question { display: none; }
+body.card h1 { font-size: 34px; margin-bottom: 18px; }
+body.card .thesis { transition: none; }
+body.card .foot { margin-top: 18px; padding-top: 10px; font-size: 11.5px; }
 .foot { font: 400 13px/1.5 var(--mono); color: var(--muted); margin-top: 36px; border-top: 1px solid var(--rule); padding-top: 14px; }
 .foot a { color: inherit; }
 .axis text { font: 400 10.5px var(--mono); fill: var(--muted); letter-spacing: .06em; }
@@ -73,6 +84,7 @@ h2 { font: 400 28px/1.2 var(--serif); margin: 0 0 6px; }
   <p class="caption" id="caption"></p>
   <div class="controls"><button id="play">▶ Play</button></div>
   <div id="stage"></div>
+  <div class="scrub" id="scrub"><label for="asof">Scrub time</label><input type="range" id="asof" min="0" step="1"><output id="asofOut"></output></div>
   <div class="readout" id="readout"></div>
   <p class="thesis" id="thesis"></p>
   <p class="foot" id="foot"></p>
@@ -88,6 +100,11 @@ const AS_OF = new Date(DATA.as_of + "T00:00:00Z");
 const utc = s => new Date(s + "T00:00:00Z");
 const fmt = s => utc(s).toLocaleString("en", { month: "short", day: "numeric", timeZone: "UTC" });
 const params = new URLSearchParams(location.search);
+if (params.get("card") === "1") {
+  document.body.classList.add("card");
+  document.documentElement.dataset.theme = "light";       // light is canonical for stills
+  params.set("final", "1");
+}
 const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const THESIS = {
   change: "The old value isn't false. It is no longer current.",
@@ -117,7 +134,7 @@ let t0 = null, raf = null, tNow = 0;
 
 function css(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
 
-function draw(s, t) {
+function draw(s, t, at = null) {
   const stage = d3.select("#stage");
   stage.selectAll("*").remove();
   const W = Math.max(340, stage.node().getBoundingClientRect().width);
@@ -160,7 +177,10 @@ function draw(s, t) {
   now.append("text").attr("x", nowX + 4).attr("y", baseY + 18).text("NOW");
   // arrival rail: records come in here, at NOW
   const rail = svg.append("g").attr("class", "rail");
-  rail.append("text").attr("x", nowX).attr("y", railY - 8).attr("text-anchor", "middle").attr("fill", OCH).style("fill", OCH).text("ARRIVES");
+  rail.append("line").attr("x1", nowX - (compact ? 44 : 64)).attr("x2", nowX + (compact ? 44 : 64)).attr("y1", railY + 12).attr("y2", railY + 12)
+    .attr("stroke", OCH).attr("stroke-opacity", .45).attr("stroke-width", 1.2);
+  rail.append("text").attr("x", nowX).attr("y", railY - 6).attr("text-anchor", "middle").style("fill", OCH)
+    .style("font-weight", 600).text(compact ? "ARRIVES" : "ARRIVES AT NOW");
 
   // state at this frame
   const { k, p, done } = phaseAt(s, t);
@@ -175,6 +195,10 @@ function draw(s, t) {
   const opOf = st => st === "previous" ? .32 : 1;
   const widthOf = st => st === "previous" ? 3 : st === "current" ? 5 : 3;
   const convOf = st => st === "conflict" ? 1 : 0;
+  // while a late record travels back, it is the brightest thing on the page
+  const focus = step.outcome === "past" && settle < 1 && done === 0 ? clamp(appear) * (1 - settle) : 0;
+  const scrubbing = at !== null && at < s.scrub.length - 1;
+  const layer = svg.append("g").attr("opacity", 1 - 0.2 * focus - (scrubbing ? 0.35 : 0));
 
   // transitions (○ → ●) are drawn from the settled answer only
   const shownHist = settle >= 1 ? nextHist : prevHist;
@@ -184,7 +208,7 @@ function draw(s, t) {
     const nextV = shownHist.find(n => n.valid_from === e.valid_to) || (settle >= 0.5 ? nextHist : prevHist).find(n => n.valid_from === e.valid_to);
     if (!nextV) return;
     const x1 = x(utc(e.valid_to)), y1 = yOf(h.value), y2 = yOf(nextV.value);
-    svg.append("path").attr("fill", "none").attr("stroke", INK).attr("stroke-opacity", .28).attr("stroke-width", 1.4)
+    layer.append("path").attr("fill", "none").attr("stroke", INK).attr("stroke-opacity", .28).attr("stroke-width", 1.4)
       .attr("d", `M${x1},${y1} C${x1 + 18},${y1} ${x1 - 6},${y2} ${x1 + 10},${y2}`);
   });
 
@@ -201,7 +225,7 @@ function draw(s, t) {
     const op = lerp(opOf(st0), opOf(st1), u), sw = lerp(widthOf(st0), widthOf(st1), u);
     const conv = arriving ? convOf(st1) * settle : lerp(convOf(st0), convOf(st1), u);
     if (st1 === "conflict") knotAmt = Math.max(knotAmt, conv);
-    const g = svg.append("g");
+    const g = layer.append("g");
     const isCur = st1 === "current" && u >= 1 || (st0 === "current" && st1 === "current");
     if (conv > 0) {
       const xe = lerp(x1, knotX, conv), ye = lerp(y, knotY, conv);
@@ -261,6 +285,16 @@ function draw(s, t) {
       .attr("text-anchor", compact ? "end" : "start").attr("fill", CIN).text("no winner");
   }
 
+  // a late record leaves a faint trail: where it came in (NOW) → when it was true
+  s.steps.forEach((st, i) => {
+    if (st.outcome !== "past" || i > k || (i === k && settle < 1)) return;
+    const tx = x(utc(st.valid_from)) + 20, ty = yOf(st.value) - 16, sx = nowX, sy = railY + 12;
+    svg.append("path").attr("fill", "none").attr("stroke", OCH).attr("stroke-width", 1.3).attr("stroke-dasharray", "4 3")
+      .attr("stroke-opacity", .45).attr("d", `M${sx},${sy} C${sx - 160},${sy - 6} ${tx + 60},${ty - 90} ${tx},${ty}`);
+    svg.append("text").attr("class", "arr").attr("x", sx - 10).attr("y", sy - 8 + 30).attr("text-anchor", "end")
+      .attr("fill", OCH).attr("fill-opacity", .8).text(compact ? "" : `${st.value} came in here`);
+  });
+
   // the arriving record: appears at NOW on the rail, then travels to when it was true
   if (settle < 1 && done === 0) {
     const tx = x(utc(step.valid_from)) + 20, ty = yOf(step.value) - 16;
@@ -269,18 +303,31 @@ function draw(s, t) {
     const bez = (u, a0, a1, a2, a3) => (1 - u) ** 3 * a0 + 3 * (1 - u) ** 2 * u * a1 + 3 * (1 - u) * u ** 2 * a2 + u ** 3 * a3;
     const gx = bez(travel, sx, c1[0], c2[0], tx), gy = bez(travel, sy, c1[1], c2[1], ty);
     if (step.outcome === "past") {         // the path it takes: past the present, back into April
-      svg.append("path").attr("fill", "none").attr("stroke", OCH).attr("stroke-width", 1.3).attr("stroke-dasharray", "4 3")
-        .attr("stroke-opacity", .7 * clamp(travel * 3)).attr("d", `M${sx},${sy} C${c1} ${c2} ${tx},${ty}`);
+      svg.append("path").attr("fill", "none").attr("stroke", OCH).attr("stroke-width", 1.8).attr("stroke-dasharray", "5 3")
+        .attr("stroke-opacity", clamp(travel * 3)).attr("d", `M${sx},${sy} C${c1} ${c2} ${tx},${ty}`);
     }
     const gw = compact ? 78 : 104, gh = 26;
     const ghost = svg.append("g").attr("opacity", appear * (1 - settle));
     ghost.append("rect").attr("x", gx - gw / 2).attr("y", gy - gh / 2).attr("width", gw).attr("height", gh).attr("rx", 4)
-      .attr("fill", PAPER).attr("stroke", OCH).attr("stroke-dasharray", "4 3").attr("stroke-width", 1.4);
+      .attr("fill", PAPER).attr("stroke", OCH).attr("stroke-dasharray", step.outcome === "past" ? null : "4 3")
+      .attr("stroke-width", step.outcome === "past" ? 2 : 1.4);
     ghost.append("text").attr("class", "val").attr("x", gx - gw / 2 + 24).attr("y", gy + 6).attr("fill", OCH).text(step.value);
     ghost.append("circle").attr("cx", gx - gw / 2 + 12).attr("cy", gy + 1).attr("r", 7).attr("fill", "none").attr("stroke", OCH).attr("stroke-width", 1.2);
     ghost.append("text").attr("class", "arr").attr("x", gx - gw / 2 + 12).attr("y", gy + 4.5).attr("text-anchor", "middle").attr("fill", OCH).text(step.arrival);
     ghost.append("text").attr("class", "arr").attr("x", gx + gw / 2 + 8).attr("y", gy + 4).attr("fill", OCH)
       .attr("opacity", 1 - travel).text(`says: from ${fmt(step.valid_from)}`);
+  }
+
+  // as-of scrubber: TypedMem's answer at a sampled time (generated, not computed here)
+  const sample = at !== null ? s.scrub[at] : null;
+  if (scrubbing) {
+    const sx = x(utc(sample.t));
+    svg.append("line").attr("x1", sx).attr("x2", sx).attr("y1", top - 14).attr("y2", baseY).attr("stroke", INK).attr("stroke-width", 1.2);
+    svg.append("text").attr("class", "tag").attr("x", sx).attr("y", top - 20).attr("text-anchor", sx > W * .6 ? "end" : "middle")
+      .attr("fill", INK).text(fmt(sample.t));
+    const vals = sample.current ? [sample.current] : sample.conflict;
+    vals.forEach(v => svg.append("circle").attr("cx", sx).attr("cy", yOf(v)).attr("r", 6.5)
+      .attr("fill", sample.current ? SAGE : CIN).attr("stroke", PAPER).attr("stroke-width", 2));
   }
 
   // words: what the product said about this arrival
@@ -296,7 +343,16 @@ function draw(s, t) {
   d3.select("#caption").text(cap);
   const shown = settle >= 1 ? step : prevStep;
   const ro = d3.select("#readout").html("");
-  if (shown) {
+  if (scrubbing) {
+    const c = ro.append("div");
+    c.append("div").attr("class", "k").text(`Current on ${fmt(sample.t)}`);
+    if (sample.current) c.append("div").attr("class", "v current").text(sample.current);
+    else if (sample.conflict.length) c.append("div").attr("class", "v unresolved").text("unresolved");
+    else c.append("div").attr("class", "v").text("nothing yet");
+    d3.select("#caption").text(sample.conflict.length
+      ? `On ${fmt(sample.t)} ${sample.conflict.join(" and ")} both claim the account. TypedMem answers: no current value.`
+      : `As of ${fmt(sample.t)}, TypedMem answers ${sample.current}.`);
+  } else if (shown) {
     const c = ro.append("div");
     c.append("div").attr("class", "k").text("Current");
     if (shown.current) c.append("div").attr("class", "v current").text(shown.current);
@@ -318,20 +374,36 @@ function setScene(key) {
   document.getElementById("question").textContent = scene.question;
   play();
 }
+function showScrub() {
+  const r = document.getElementById("asof"), last = scene.scrub.length - 1;
+  r.max = last;
+  const at = params.get("at") !== null ? Math.min(+params.get("at"), last) : last;
+  r.value = at;
+  document.getElementById("asofOut").textContent = at === last ? "now" : fmt(scene.scrub[at].t);
+  document.getElementById("scrub").classList.add("on");
+  return at;
+}
+function hideScrub() { document.getElementById("scrub").classList.remove("on"); }
+document.getElementById("asof").addEventListener("input", e => {
+  const at = +e.target.value, last = scene.scrub.length - 1;
+  document.getElementById("asofOut").textContent = at === last ? "now" : fmt(scene.scrub[at].t);
+  draw(scene, timeline(scene).total, at);
+});
 function frame(ts) {
   if (t0 === null) t0 = ts;
   tNow = ts - t0;
   const total = timeline(scene).total;
   draw(scene, Math.min(tNow, total));
   if (tNow < total) raf = requestAnimationFrame(frame);
-  else { raf = null; document.getElementById("play").textContent = "↺ Replay"; }
+  else { raf = null; document.getElementById("play").textContent = "↺ Replay"; showScrub(); }
 }
 function play() {
-  cancelAnimationFrame(raf); t0 = null;
+  cancelAnimationFrame(raf); t0 = null; hideScrub();
   document.getElementById("play").textContent = "▶ Play";
   const fixed = params.get("t"), total = timeline(scene).total;
   if (reduced || params.get("final") === "1" || fixed !== null) {
-    draw(scene, fixed !== null ? +fixed : total);
+    const done = fixed === null || +fixed >= total;
+    draw(scene, fixed !== null ? +fixed : total, done ? showScrub() : null);
     document.getElementById("play").textContent = "↺ Replay";
     return;
   }
@@ -344,6 +416,12 @@ document.getElementById("play").onclick = () => { params.delete("t"); params.del
 document.getElementById("stateKey").textContent = scene.state_key;
 document.getElementById("foot").innerHTML = `Data: ${DATA.source}, evaluated as of ${DATA.as_of}. ` +
   `<a href="https://github.com/lyr-ai/typedmem">TypedMem on GitHub</a> · <a href="plates.html">static plates</a>`;
+if (document.body.classList.contains("card")) {
+  document.querySelector("h1").textContent = "The newest memory isn't always the current truth.";
+  document.querySelector(".fig").textContent = "TypedMem · Truth Through Time · " + scene.state_key;
+  document.getElementById("foot").textContent = `Drawn from TypedMem's own answers (${DATA.source}).`;
+}
+window.renderAt = t => draw(scene, t);            // for recording stills and video frames
 let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { if (!raf) draw(scene, params.get("t") !== null ? +params.get("t") : timeline(scene).total); }, 120); });
 setScene(scene.key);
 </script>

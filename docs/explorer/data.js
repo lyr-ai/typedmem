@@ -146,47 +146,47 @@ window.TRUTH_DATA = {
    },
    "scrub": [
     {
-     "t": "2026-01-01",
-     "current": null,
-     "conflict": []
-    },
-    {
-     "t": "2026-02-01",
+     "t": "2026-01-15",
      "current": "Free",
      "conflict": []
     },
     {
-     "t": "2026-03-01",
+     "t": "2026-02-15",
      "current": "Free",
      "conflict": []
     },
     {
-     "t": "2026-04-01",
+     "t": "2026-03-15",
+     "current": "Free",
+     "conflict": []
+    },
+    {
+     "t": "2026-04-15",
      "current": "Pro",
      "conflict": []
     },
     {
-     "t": "2026-05-01",
+     "t": "2026-05-15",
      "current": "Pro",
      "conflict": []
     },
     {
-     "t": "2026-06-01",
+     "t": "2026-06-15",
      "current": "Pro",
      "conflict": []
     },
     {
-     "t": "2026-07-01",
+     "t": "2026-07-15",
      "current": "Pro",
      "conflict": []
     },
     {
-     "t": "2026-08-01",
+     "t": "2026-08-15",
      "current": "Pro",
      "conflict": []
     },
     {
-     "t": "2026-09-01",
+     "t": "2026-09-15",
      "current": "Enterprise",
      "conflict": []
     },
@@ -340,47 +340,47 @@ window.TRUTH_DATA = {
    },
    "scrub": [
     {
-     "t": "2026-01-01",
-     "current": null,
-     "conflict": []
-    },
-    {
-     "t": "2026-02-01",
+     "t": "2026-01-15",
      "current": "Free",
      "conflict": []
     },
     {
-     "t": "2026-03-01",
+     "t": "2026-02-15",
      "current": "Free",
      "conflict": []
     },
     {
-     "t": "2026-04-01",
+     "t": "2026-03-15",
+     "current": "Free",
+     "conflict": []
+    },
+    {
+     "t": "2026-04-15",
      "current": "Pro",
      "conflict": []
     },
     {
-     "t": "2026-05-01",
+     "t": "2026-05-15",
      "current": "Pro",
      "conflict": []
     },
     {
-     "t": "2026-06-01",
+     "t": "2026-06-15",
      "current": "Pro",
      "conflict": []
     },
     {
-     "t": "2026-07-01",
+     "t": "2026-07-15",
      "current": "Pro",
      "conflict": []
     },
     {
-     "t": "2026-08-01",
+     "t": "2026-08-15",
      "current": "Pro",
      "conflict": []
     },
     {
-     "t": "2026-09-01",
+     "t": "2026-09-15",
      "current": "Enterprise",
      "conflict": []
     },
@@ -548,47 +548,47 @@ window.TRUTH_DATA = {
    },
    "scrub": [
     {
-     "t": "2026-01-01",
-     "current": null,
-     "conflict": []
-    },
-    {
-     "t": "2026-02-01",
+     "t": "2026-01-15",
      "current": "Free",
      "conflict": []
     },
     {
-     "t": "2026-03-01",
+     "t": "2026-02-15",
      "current": "Free",
      "conflict": []
     },
     {
-     "t": "2026-04-01",
+     "t": "2026-03-15",
      "current": "Free",
      "conflict": []
     },
     {
-     "t": "2026-05-01",
+     "t": "2026-04-15",
      "current": "Free",
      "conflict": []
     },
     {
-     "t": "2026-06-01",
+     "t": "2026-05-15",
      "current": "Free",
      "conflict": []
     },
     {
-     "t": "2026-07-01",
+     "t": "2026-06-15",
      "current": "Free",
      "conflict": []
     },
     {
-     "t": "2026-08-01",
+     "t": "2026-07-15",
      "current": "Free",
      "conflict": []
     },
     {
-     "t": "2026-09-01",
+     "t": "2026-08-15",
+     "current": "Free",
+     "conflict": []
+    },
+    {
+     "t": "2026-09-15",
      "current": null,
      "conflict": [
       "Enterprise",
