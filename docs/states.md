@@ -125,5 +125,9 @@ in [design note 0002](https://github.com/lyr-ai/typedmem/blob/main/design/0002-c
 - You name the key. TypedMem doesn't extract states from free text.
 - One value per key. For things that hold several values at once, use
   ordinary memories.
+- States order values by validity time and source authority only. They
+  deliberately don't apply confidence or per-type rules ("ignore a less
+  confident write", "always replace"). Use typed memories when those
+  should decide.
 - States are available in Python and the CLI. The HTTP server and the
   TypeScript client don't expose them yet.
