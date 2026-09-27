@@ -1,4 +1,4 @@
-"""TypedMemory HTTP server (v0.7+).
+"""TypedMem HTTP server (v0.7+).
 
 Exposes the existing Python surface as REST under ``/v1/``. Optional extra:
 ``pip install 'typedmem[server]'``. Start with ``typedmem serve --store ...``.

@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "typedmem"
-version = "0.9.1"
-description = "Contract-driven memory for AI agents — typed schemas, explicit conflict policies, structured provenance, typed event timeline."
+version = "0.9.2"
+description = "Memory for AI agents when facts change — current state, history, and provenance."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }

@@ -113,7 +113,7 @@ event log.
 
 ### TL;DR
 
-**Memory you can contract against.** Four explicit contracts make TypedMemory:
+**Memory you can contract against.** Four explicit contracts make TypedMem:
 
 - **`DomainProfile`** — typed schema; invalid writes are *rejected*, not "learned"
 - **`ConflictPolicy`** — declarative behaviour on slot collision (`REPLACE` / `SUPERSEDE` / `REINFORCE` / `FLAG` / `KEEP_BOTH` / `IGNORE`)
@@ -130,7 +130,7 @@ AI agents start believing their own hallucinations. They:
 - **overwrite past decisions with no audit trail** — you can't debug what you can't see
 - **never resolve goals** — yesterday's "I'll do X" looks identical to today's "I did X"
 
-TypedMemory makes that visible.
+TypedMem makes that visible.
 
 ### The contradiction-detection moment
 
@@ -176,7 +176,7 @@ Four verbs over the whole pipeline: **`remember`** (extract + store), **`recall`
 
 ## Before vs After
 
-| | Without TypedMemory | With TypedMemory |
+| | Without TypedMem | With TypedMem |
 |---|---|---|
 | **Agent changes its mind** | Last write silently overwrites | REPLACE policy + `PreferenceDriftDetector` flag instability; the change is recorded in the event log |
 | **Two facts contradict** | One overwrites the other; you'll never know | FLAG cross-links both; `typedmem contradictions` surfaces the cluster |
@@ -188,7 +188,7 @@ Four verbs over the whole pipeline: **`remember`** (extract + store), **`recall`
 
 ## The four contracts
 
-Most memory systems are **learned** — they consolidate, refine, and optimize for retrieval recall. TypedMemory is **contracted** — every state change is governed by rules you declare up front.
+Most memory systems are **learned** — they consolidate, refine, and optimize for retrieval recall. TypedMem is **contracted** — every state change is governed by rules you declare up front.
 
 - **Schema is a contract.** `DomainProfile` + `TypeSpec` declare which memory types exist, what fields they require, and what tags they allow. Writes that don't match are **rejected** (HTTP 422 from the server). The system does not "learn around" your schema.
 - **Behaviour is a contract.** Each type declares a `ConflictPolicy` — what should happen when a new memory hits the same `(workspace, type, subject)` slot. `REPLACE` overwrites and logs. `SUPERSEDE` keeps both with a forward link. `REINFORCE` merges sources and bumps confidence. `FLAG` cross-links contradictions instead of silently picking a winner. Policies are declarative, deterministic, and yours.
@@ -197,9 +197,9 @@ Most memory systems are **learned** — they consolidate, refine, and optimize f
 
 The agent's beliefs are auditable because the contracts are explicit. The whole point: when the memory got something wrong, you can prove *what* changed, *when*, *why*, and *who* did it.
 
-## What TypedMemory is **not**
+## What TypedMem is **not**
 
-TypedMemory is intentionally narrow:
+TypedMem is intentionally narrow:
 
 - **Not a general-purpose retrieval engine.** We don't compete on benchmark recall. If retrieval quality is your bottleneck, you're in the wrong place.
 - **Not a hosted memory cloud.** The v0.7 server is BYO-deploy: Cloud Run, Docker, systemd — your hosting choice.
@@ -253,7 +253,7 @@ Most "AI memory" libraries are wrappers around a vector database. That works for
 - **isolate** legal memory from medical memory on the same machine
 - **flag contradictions** instead of silently overwriting them
 
-TypedMemory handles these as first-class concepts, not bolt-ons.
+TypedMem handles these as first-class concepts, not bolt-ons.
 
 ## Install
 
@@ -505,7 +505,7 @@ Default store: `~/.typedmem/memories.db` (override with `--store path.db` or `--
 
 ## Status & roadmap
 
-Latest release: **v0.9.1**. States (`set` / `get` / `history`) arrived in 0.9.0; 0.9.1 fixes which values count as a conflict. Before that, **v0.8.0**: governed state transitions (one `TransitionEngine` for every write). See the [CHANGELOG](CHANGELOG.md) for v0.4–v0.7 (profiles, `AgentMemory`, event timeline, HTTP server).
+Latest release: **v0.9.2**. States (`set` / `get` / `history`) arrived in 0.9.0; 0.9.1 fixed which values count as a conflict; 0.9.2 fixes the message when a late record confirms a past value, and documents states on the docs site. Before that, **v0.8.0**: governed state transitions (one `TransitionEngine` for every write). See the [CHANGELOG](CHANGELOG.md) for v0.4–v0.7 (profiles, `AgentMemory`, event timeline, HTTP server).
 
 Under consideration next, only if real usage demands it:
 
@@ -514,7 +514,7 @@ Under consideration next, only if real usage demands it:
 - Hybrid BM25 + semantic retrieval
 - Sentence-transformer embedder
 
-What TypedMemory **doesn't** do and doesn't plan to:
+What TypedMem **doesn't** do and doesn't plan to:
 
 - ship document chunkers / loaders — define the `ingest()` seam, bring your own (`unstructured`, `langchain`, plain regex)
 - ship its own vector DB — the abstraction is ready for one, but brute-force cosine wins under ~50k memories

@@ -1,4 +1,4 @@
-"""TypedMemory: contract-driven memory for AI agents.
+"""TypedMem: contract-driven memory for AI agents.
 
 Four contracts make a typed memory:
 
@@ -64,7 +64,7 @@ from .stores import (
     SQLiteMemoryStore,
 )
 
-__version__ = "0.9.1"
+__version__ = "0.9.2"
 
 __all__ = [
     "DEFAULT_POLICIES",

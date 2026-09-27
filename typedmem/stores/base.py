@@ -370,7 +370,7 @@ class MemoryStore(ABC):
                            + ", ".join(s.document_id for s in new),
                 ))
             return self._set_result(key, value, "unchanged", same.id, ws, now,
-                                    previous, was_conflict)
+                                    previous, was_conflict, source_added=bool(new))
 
         self.transitions.apply(Transition(
             action="create", memory=incoming,
@@ -386,7 +386,7 @@ class MemoryStore(ABC):
                                 previous, was_conflict)
 
     def _set_result(self, key, value, outcome, memory_id, ws, now,
-                    previous, was_conflict) -> SetResult:
+                    previous, was_conflict, source_added: bool = False) -> SetResult:
         res = resolve(self._state_records(key, ws), now)
         es = entries(key, res)
         entry = next(e for e in es if e.memory_id == memory_id)
@@ -395,6 +395,7 @@ class MemoryStore(ABC):
             current=res.current.content if res.current else None,
             conflicts=tuple(e for e in es if e.status == "conflict"),
             resolved_conflict=was_conflict if res.settled else (),
+            source_added=source_added,
         )
 
     def _relink_state(self, res: Resolution, *, actor, actor_name) -> None:

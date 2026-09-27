@@ -260,3 +260,28 @@ def test_list_agrees_with_get_after_a_scheduled_value_takes_effect():
     time.sleep(0.06)
     assert store.get_state("alice.employer") == "Anthropic"
     assert [m.content for m in store.all()] == ["Anthropic"]
+
+
+def test_set_reports_confirming_a_historical_value(tmp_path, capsys):   # issue #9
+    from typedmem.cli import main
+    db = ["--store", str(tmp_path / "m.db")]
+    main(db + ["set", "account.plan", "Pro", "--valid-from", "2026-04-01", "--source", "billing"])
+    main(db + ["set", "account.plan", "Enterprise", "--valid-from", "2026-09-01", "--source", "billing"])
+    capsys.readouterr()
+    main(db + ["set", "account.plan", "Pro", "--valid-from", "2026-04-01", "--source", "support ticket"])
+    assert capsys.readouterr().out.strip() == (
+        "account.plan: added source to historical value Pro (from 2026-04-01); current is Enterprise")
+    main(db + ["set", "account.plan", "Pro", "--valid-from", "2026-04-01", "--source", "support ticket"])
+    assert capsys.readouterr().out.strip() == (
+        "account.plan: Pro (from 2026-04-01) is already recorded as a historical value; current is Enterprise")
+    main(db + ["set", "account.plan", "Enterprise", "--valid-from", "2026-09-01", "--source", "crm"])
+    assert capsys.readouterr().out.strip() == "account.plan = Enterprise  (unchanged; source added)"
+    main(db + ["set", "account.plan", "Enterprise", "--valid-from", "2026-09-01", "--source", "crm"])
+    assert capsys.readouterr().out.strip() == "account.plan = Enterprise  (unchanged)"
+
+
+def test_set_result_says_whether_a_source_was_added():
+    store = InMemoryStore()
+    store.set_state("k", "v", source="a")
+    assert store.set_state("k", "v", source="b").source_added is True
+    assert store.set_state("k", "v", source="b").source_added is False

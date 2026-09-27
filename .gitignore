@@ -30,3 +30,7 @@ env/
 *.jsonl
 !tests/**/*.jsonl
 memories.db
+
+# Heed / Beacon outputs (local analysis, not part of the package)
+.heed/
+.beacon/

@@ -1,6 +1,6 @@
 # Server (HTTP / v0.7+)
 
-TypedMemory ships as a Python library, but starting with v0.7 it can also run
+TypedMem ships as a Python library, but starting with v0.7 it can also run
 as an HTTP service. The server exposes the existing Python surface under
 `/v1/`, so any language with a JSON client can use it — TypeScript, Go, Rust,
 shell scripts, anything.
@@ -205,7 +205,7 @@ The image's default `CMD` is `["serve"]` and `TYPEDMEM_DB=/data/agent.db` is pre
 ```ini
 # /etc/systemd/system/typedmem.service
 [Unit]
-Description=TypedMemory HTTP server
+Description=TypedMem HTTP server
 After=network.target
 
 [Service]
