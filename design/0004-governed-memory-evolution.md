@@ -110,6 +110,14 @@ conflict instead of picking a winner: authority 0.50, against 1.00 for typed mem
 That is by design, not a better score. What sets TypedMem apart is how it handles
 disagreement and trust, which is what D3 would put next to change.
 
+**External signal: kai #1702 (2026-09-27).** A maintainer already building
+explicit revision states, unresolved conflicts and an immutable event log found
+the valid-time rule novel enough to adopt into their own roadmap. They opened
+[kai #1790](https://github.com/dcellison/kai/issues/1790) and credited
+TypedMem's design. This counts against the hypothesis that the changing-facts
+framing is inherently trivial: the example may be simple while the rule
+underneath is not. It is one data point, not a positioning decision.
+
 ## Unknown
 
 > **Does the current hero actually make strangers perceive TypedMem as trivial?**
