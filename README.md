@@ -1,19 +1,11 @@
-**Your agent knows a customer started on Free and upgraded to Enterprise in
-September. Then an old support ticket turns up: "customer is on Pro". It was
-written back in April.**
-
-**What should the agent believe now?**
-
-A memory that stores and retrieves everything hands the agent all three:
-`Free`, `Enterprise`, `Pro`. Which one is current? Is Pro wrong, or just old?
-Should the record that arrived last win?
-
 # TypedMem
 
 **Memory for AI agents when facts change.**
 
-TypedMem is not another vector store. It gives stateful AI an explicit way to
-represent what is current, what used to be true, and what is still unresolved.
+Your agent knows the account is **Enterprise**. Then an old support ticket
+arrives saying it was **Pro** in April.
+
+**Which value is current, and should the newest record win?**
 
 ```text
 account.plan
@@ -28,6 +20,9 @@ account.plan
 ```
 
 **The old value isn't false. It is no longer current.**
+
+TypedMem is not another vector store. It gives stateful AI an explicit way to
+represent what is current, what used to be true, and what is still unresolved.
 
 ## Try it (30 seconds)
 
