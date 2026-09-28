@@ -158,6 +158,53 @@ and can't decide the question alone.
 
 Either outcome is acceptable.
 
+### Test protocol (fixed 2026-09-27, before any reader)
+
+The kai experiment was recorded on 2026-09-27 (L3; see "Evidence today"), so the test
+can run.
+
+**Readers.** 10 people, **5 per version**. Each person sees **one** version only, so
+the second can't be coloured by the first. Assignment alternates A, B, A, B… in the
+order people agree to take part. People who have seen TypedMem, its README, or the
+Note 03 blog post don't take part. Readers aren't told this is a positioning test,
+and D1/D3 aren't explained.
+
+**Materials.** Both versions use the same frame: a GitHub-style README first screen,
+same width, same image size. **A** is the current README down to "Try it".
+**B** is a local draft with:
+- the tagline "Memory that knows how to change.";
+- the four problems with evidence (change, conflict, provenance, history/audit),
+  and no lifecycle;
+- the contract-tested billing-vs-crm example from `docs/states.md`.
+
+Every claim in B must be true of TypedMem today. Only one tagline is tested, because
+five readers can't compare several.
+
+**Questions.** The four above, in order, after 10 seconds of viewing. **Question 2
+is the primary one** ("How is it different from a vector database or an ordinary
+state store?").
+
+**Codebook.** Question 1 and question 2 answers get exactly one code each:
+- **T, temporal utility:** only keeping old versions, timestamps, history, or which
+  value is newest.
+- **G, governed change:** names at least one thing beyond time: disagreement
+  between sources, which source to trust or where a value came from, or rules for
+  how memory changes.
+- **C, complex or unclear:** can't say what it does, or "a complicated
+  agent-memory framework", or a generic "memory library".
+- **O, other.**
+
+Question 4 is coded **yes** (would keep reading or try) or **no**. Two people code
+the answers independently. If they disagree, that reader's code is **C**.
+
+**Decision (with 5 per version, "mostly" = 4 of 5):**
+- **Adopt D3** if ≥4/5 of A readers are **T** on question 2, **and** ≥4/5 of B readers
+  are **G** on question 2, **and** B has at least as many question-4 "yes" answers as A.
+- **Keep D1** if ≥4/5 of B readers are **C** on question 2, **or** ≥4/5 of A readers
+  are **G** on question 2.
+- **Inconclusive** otherwise, for example 3/5 against 3/5. Record it and keep D1. No
+  readers are added after the fact to reach a result.
+
 ## If adopted
 
 In order: the new hero, README reordering with details moved to docs, then
